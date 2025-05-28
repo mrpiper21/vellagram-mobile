@@ -1,5 +1,6 @@
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from "expo-router";
 import React, { JSX, useEffect, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import {
 	Vibration,
 	View,
 } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 
 interface ColorTheme {
 	text: string;
@@ -92,7 +94,6 @@ export default function PasscodeScreen(): JSX.Element {
 		if (passcode.length < 6) {
 			setPasscode((prev) => prev + number);
 			setError("");
-			Vibration.vibrate(5);
 		}
 	};
 
@@ -113,7 +114,7 @@ export default function PasscodeScreen(): JSX.Element {
 					Alert.alert("Success", "Access granted!");
 				} else {
 					setError("Incorrect passcode. Try again.");
-					Vibration.vibrate([0, 500, 200, 500]); // Error vibration pattern
+					Vibration.vibrate([0, 500, 200, 500]);
 				}
 				setIsLoading(false);
 				setPasscode("");
@@ -121,12 +122,12 @@ export default function PasscodeScreen(): JSX.Element {
 		}
 	};
 
-	const handleBiometricAuth = (): void => {
-		Alert.alert(
-			"Biometric Authentication",
-			"This feature would integrate with device biometrics (Face ID, Touch ID)",
-			[{ text: "OK" }]
-		);
+	const handleBiometricAuth = async() => {
+		const {success} = await LocalAuthentication.authenticateAsync()
+		if(success){
+			router.push("/(tabs)")
+		}
+
 	};
 
 	const handleForgotPasscode = (): void => {
@@ -150,16 +151,32 @@ export default function PasscodeScreen(): JSX.Element {
 		</View>
 	);
 
+	const OFFSET = 20
+	const TIME = 80;
+
 	useEffect(() => {
 		if (passcode.length === 6) {
 			if (passcode === "111111") {
 				router.replace("/(tabs)");
 				setPasscode("");
 			} else {
+				offset.value = withSequence(
+					withTiming(-OFFSET, {duration: TIME /2}),
+					withRepeat(withTiming(OFFSET, {duration: TIME}), 4, true),
+					withTiming(0, {duration: TIME / 2})
+				)
+				Vibration.vibrate(50);
 				setPasscode("");
 			}
 		}
 	}, [passcode]);
+
+	const offset = useSharedValue(0)
+	const style = useAnimatedStyle(()=> {
+		return {
+			transform: [{translateX: offset.value}]
+		}
+	})
 
 	return (
 		<SafeAreaView
@@ -185,17 +202,14 @@ export default function PasscodeScreen(): JSX.Element {
 				</Text>
 			</View>
 
-			{/* Passcode Dots */}
-			<View style={styles.passcodeSection}>{renderPasscodeDots()}</View>
+			<Animated.View style={[styles.passcodeSection,style]}>{renderPasscodeDots()}</Animated.View>
 
-			{/* Error Message */}
 			{error ? (
 				<View style={styles.errorContainer}>
 					<Text style={styles.errorText}>{error}</Text>
 				</View>
 			) : null}
 
-			{/* Number Pad */}
 			<View style={styles.numberPad}>
 				<View style={styles.numberRow}>
 					<NumberButton
@@ -261,7 +275,6 @@ export default function PasscodeScreen(): JSX.Element {
 				</View>
 
 				<View style={styles.numberRow}>
-					{/* Show/Hide Toggle */}
 					<TouchableOpacity
 						style={styles.biometricButton}
 						onPress={handleBiometricAuth}
@@ -276,7 +289,6 @@ export default function PasscodeScreen(): JSX.Element {
 						disabled={isLoading}
 					/>
 
-					{/* Delete Button */}
 					<TouchableOpacity
 						style={[
 							styles.actionButton,
