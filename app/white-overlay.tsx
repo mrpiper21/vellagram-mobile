@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/Colors";
+import VellagramLogo from "@/assets/images/Logo101";
 import React from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 const WhiteOverlay = () => {
 	return (
@@ -12,11 +12,7 @@ const WhiteOverlay = () => {
 				justifyContent: "center",
 			}}
 		>
-			<Text
-				style={{ color: Colors.light.text, fontSize: 24, fontWeight: "600" }}
-			>
-				Vedify
-			</Text>
+			<VellagramLogo />
 		</View>
 	);
 };

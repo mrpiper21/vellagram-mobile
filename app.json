@@ -1,24 +1,24 @@
 {
   "expo": {
-    "name": "vedify-mobile",
-    "slug": "vedify-mobile",
+    "name": "Vellagram",
+    "slug": "Vellagram",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "vedifymobile",
+    "icon": "./assets/images/logo-icon.svg",
+    "scheme": "Vellagram",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mr.piper.vedifymobile"
+      "bundleIdentifier": "com.mr.piper.Vellagram"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo-icon.svg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.mr.piper.vedifymobile",
+      "package": "com.mr.piper.Vellagram",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
@@ -34,7 +34,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo-icon.svg",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
