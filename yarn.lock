@@ -3507,6 +3507,11 @@ expo-router@~5.0.6:
     server-only "^0.0.1"
     shallowequal "^1.1.0"
 
+expo-sms@^13.1.4:
+  version "13.1.4"
+  resolved "https://registry.yarnpkg.com/expo-sms/-/expo-sms-13.1.4.tgz#729b1b8840e589fb30fc07c8a7c97ad0fa8b4067"
+  integrity sha512-yt8htaS/aOWAXn2YpLfoeSIxpLFqnt9E3lx6IGKll9/5wAh8BdQvKzzzFamJIvlyCaC24orqcXfhQxpboBd3DA==
+
 expo-splash-screen@~0.30.8:
   version "0.30.8"
   resolved "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-0.30.8.tgz#2e960ccff053bc8ace85eb56f7d6745e4ddfc6b6"
@@ -5391,6 +5396,11 @@ path-scurry@^1.11.1:
     lru-cache "^10.2.0"
     minipass "^5.0.0 || ^6.0.2 || ^7.0.0"
 
+phone@3.1.58:
+  version "3.1.58"
+  resolved "https://registry.yarnpkg.com/phone/-/phone-3.1.58.tgz#af0523fc3d2d840e46d47fb4118845f0bc38babd"
+  integrity sha512-4R4qfXxNPpl08fxOH0qvTXTodQue0nCnAQP0OIu2i59TDq4QXM0dq/b7ODPNH93setqK5YdMSiMuce0RPsgu4w==
+
 picocolors@^1.0.0, picocolors@^1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/picocolors/-/picocolors-1.1.1.tgz#3d321af3eab939b083c8f929a1d12cda81c26b6b"
@@ -5596,6 +5606,11 @@ react-is@^19.1.0:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-19.1.0.tgz#805bce321546b7e14c084989c77022351bbdd11b"
   integrity sha512-Oe56aUPnkHyyDxxkvqtd7KkdQP5uIUfHxd5XTb3wE9d/kRnZLmKbDB0GWk919tdQ+mxxPtG6EAs6RMT6i1qtHg==
 
+react-native-country-codes-picker@2.3.5:
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/react-native-country-codes-picker/-/react-native-country-codes-picker-2.3.5.tgz#159cbbcee14716533cdaa9997d457ab1a943038c"
+  integrity sha512-dDQhd0bVvlmgb84NPhTOmTk5UVYPHtk3lqZI+BPb61H1rC2IDrTvPWENg6u1DMGliqWHQDBYpeH37zvxxQL71w==
+
 react-native-edge-to-edge@1.6.0:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/react-native-edge-to-edge/-/react-native-edge-to-edge-1.6.0.tgz#2ba63b941704a7f713e298185c26cde4d9e4b973"
@@ -5610,10 +5625,23 @@ react-native-gesture-handler@~2.24.0:
     hoist-non-react-statics "^3.3.0"
     invariant "^2.2.4"
 
+react-native-international-phone-number@^0.9.3:
+  version "0.9.3"
+  resolved "https://registry.yarnpkg.com/react-native-international-phone-number/-/react-native-international-phone-number-0.9.3.tgz#2f22a44afb695b2c0fc50b903eecc97e8adccf28"
+  integrity sha512-eD/P3NP2zctmq5kbInKf7AVKSZdGmYvKbyAB5Ij/+RoCblnqg3wEaSaNKwGdgK3wsJPS4/wjGXcv/jg2NGBYIA==
+  dependencies:
+    phone "3.1.58"
+    react-native-country-codes-picker "2.3.5"
+
 react-native-is-edge-to-edge@1.1.7, react-native-is-edge-to-edge@^1.1.6:
   version "1.1.7"
   resolved "https://registry.yarnpkg.com/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.1.7.tgz#28947688f9fafd584e73a4f935ea9603bd9b1939"
   integrity sha512-EH6i7E8epJGIcu7KpfXYXiV2JFIYITtq+rVS8uEb+92naMRBdxhTuS8Wn2Q7j9sqyO0B+Xbaaf9VdipIAmGW4w==
+
+react-native-otp-entry@^1.8.4:
+  version "1.8.4"
+  resolved "https://registry.yarnpkg.com/react-native-otp-entry/-/react-native-otp-entry-1.8.4.tgz#cfc23d05571e58c2c3295dbb61091090bdfa06ff"
+  integrity sha512-7j7p/ZEz5QlS22DWYoFigbLqLDSwFbwTVlsl2QOuW6q9Jwai+y5C2GSdKZRkY7RAy0ZwG/ltkaciSdnoBNdcwQ==
 
 react-native-reanimated@~3.17.4:
   version "3.17.5"

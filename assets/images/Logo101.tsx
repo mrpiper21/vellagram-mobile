@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, View, ViewStyle } from 'react-native';
 import Svg, {
     Circle,
     Defs,
@@ -11,12 +11,18 @@ import Svg, {
     G,
     Path,
     RadialGradient,
-    Rect,
     Stop,
     Text as SvgText
 } from 'react-native-svg';
 
-const VellagramLogo = ({
+interface VellagramLogoProps {
+    size?: number;
+    showText?: boolean;
+    animated?: boolean;
+    style?: ViewStyle;
+}
+
+const VellagramLogo: React.FC<VellagramLogoProps> = ({
     size = 200,
     showText = true,
     animated = true,
@@ -28,7 +34,7 @@ const VellagramLogo = ({
 
     useEffect(() => {
         if (animated) {
-            const createAnimation = (animatedValue: any, duration: any, delay = 0) => {
+            const createAnimation = (animatedValue: Animated.Value, duration: number, delay: number = 0) => {
                 return Animated.loop(
                     Animated.sequence([
                         Animated.delay(delay),
@@ -64,11 +70,21 @@ const VellagramLogo = ({
         }
     }, [animated, dot1Opacity, dot2Opacity, dot3Opacity]);
 
-    const scale = size / 200;
+    // Calculate tight bounds - remove excessive margins
+    const logoHeight: number = showText ? 110 : 90;
+    const logoWidth: number = 90;
+    const scale: number = size / Math.max(logoWidth, logoHeight);
 
     return (
-        <View style={[{ width: size, height: size }, style]}>
-            <Svg width={size} height={size} viewBox="0 0 200 200">
+        <View style={[{
+            width: logoWidth * scale,
+            height: logoHeight * scale
+        }, style]}>
+            <Svg
+                width={logoWidth * scale}
+                height={logoHeight * scale}
+                viewBox={`0 0 ${logoWidth} ${logoHeight}`}
+            >
                 <Defs>
                     <RadialGradient id="energyGradient" cx="50%" cy="30%">
                         <Stop offset="0%" stopColor="#3A86A8" stopOpacity="1" />
@@ -89,9 +105,8 @@ const VellagramLogo = ({
                     </Filter>
                 </Defs>
 
-                <Rect width="200" height="200" fill="#FFFFFF" />
-
-                <G transform="translate(100,85)">
+                {/* Main logo circle positioned tightly */}
+                <G transform="translate(45,45)">
                     <Circle r="45" fill="url(#energyGradient)" filter="url(#premiumShadow)" />
                     <Circle r="38" fill="none" stroke="#3A86A8" strokeWidth="1" opacity="0.4" />
 
@@ -106,6 +121,7 @@ const VellagramLogo = ({
                         />
                     </G>
 
+                    {/* Animated dots */}
                     {animated && (
                         <>
                             <Animated.View style={{ opacity: dot1Opacity }}>
@@ -131,11 +147,11 @@ const VellagramLogo = ({
 
                 {showText && (
                     <SvgText
-                        x="100"
-                        y="155"
+                        x="45"
+                        y="100"
                         textAnchor="middle"
                         fill="url(#energyGradient)"
-                        fontSize="22"
+                        fontSize="11"
                         fontWeight="700"
                         fontFamily="system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
                     >

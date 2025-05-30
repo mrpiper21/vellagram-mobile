@@ -1,6 +1,5 @@
 import { IUserRegistrationData } from '@/@types/user-auth-types';
 import RenderRegisterProgressBar from '@/components/progress-bar/render-register-progressbar';
-import ContactDetails from '@/components/registeration-form/contact-details';
 import PersonalInformation from '@/components/registeration-form/personal-info';
 import PinSetUp from '@/components/registeration-form/pin-setup';
 import WalletSetUp from '@/components/registeration-form/wallet-setUp';
@@ -115,10 +114,8 @@ const RegisterScreen = () => {
             case 1:
                 return <PersonalInformation formData={formData} updateFormData={updateFormData} />
             case 2:
-                return <ContactDetails formData={formData} updateFormData={updateFormData} />
-            case 3:
                 return <PinSetUp formData={formData} updateFormData={updateFormData} />
-            case 4:
+            case 3:
                 return <WalletSetUp formData={formData} setWalletChoice={setWalletChoice} walletChoice={walletChoice} updateFormData={updateFormData} />
             default:
                 return null;
