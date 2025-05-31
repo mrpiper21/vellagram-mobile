@@ -1,4 +1,5 @@
-import { Colors } from "@/constants/Colors";
+import { useTheme } from "@/hooks/useTheme";
+import { useUserStore } from "@/store/useUserStore";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from "expo-router";
@@ -15,24 +16,6 @@ import {
 } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 
-interface ColorTheme {
-	text: string;
-	background: string;
-	tint: string;
-	icon: string;
-	tabIconDefault: string;
-	tabIconSelected: string;
-	accent: string;
-	success: string;
-	secondary: string;
-	card: string;
-	border: string;
-}
-
-interface Colors {
-	light: ColorTheme;
-}
-
 interface NumberButtonProps {
 	number: number;
 	letters?: string;
@@ -45,17 +28,25 @@ const NumberButton: React.FC<NumberButtonProps> = ({
 	letters,
 	onPress,
 	disabled = false,
-}) => (
-	<TouchableOpacity
-		style={[styles.numberButton, disabled && styles.disabledButton]}
-		onPress={() => onPress(number.toString())}
-		disabled={disabled}
-		activeOpacity={0.7}
-	>
-		<Text style={styles.numberText}>{number}</Text>
-		{letters && <Text style={styles.lettersText}>{letters}</Text>}
-	</TouchableOpacity>
-);
+}) => {
+	const { theme } = useTheme();
+
+	return (
+		<TouchableOpacity
+			style={[
+				styles.numberButton,
+				{ backgroundColor: theme.card, borderColor: theme.border },
+				disabled && styles.disabledButton
+			]}
+			onPress={() => onPress(number.toString())}
+			disabled={disabled}
+			activeOpacity={0.7}
+		>
+			<Text style={[styles.numberText, { color: theme.text }]}>{number}</Text>
+			{letters && <Text style={[styles.lettersText, { color: theme.icon }]}>{letters}</Text>}
+		</TouchableOpacity>
+	);
+};
 
 interface PasscodeDotProps {
 	filled: boolean;
@@ -67,24 +58,41 @@ const PasscodeDot: React.FC<PasscodeDotProps> = ({
 	filled,
 	showValue,
 	value,
-}) => (
-	<View
-		style={[
-			styles.passcodeDot,
-			filled
-				? showValue
-					? styles.passcodeDotFilledVisible
-					: styles.passcodeDotFilled
-				: styles.passcodeDotEmpty,
-		]}
-	>
-		{showValue && filled && value && (
-			<Text style={styles.passcodeValue}>{value}</Text>
-		)}
-	</View>
-);
+}) => {
+	const { theme } = useTheme();
+
+	return (
+		<View
+			style={[
+				styles.passcodeDot,
+				filled
+					? showValue
+						? [styles.passcodeDotFilledVisible, { borderColor: theme.tint }]
+						: [styles.passcodeDotFilled, { backgroundColor: theme.tint, borderColor: theme.tint }]
+					: [styles.passcodeDotEmpty, { borderColor: theme.border }],
+			]}
+		>
+			{showValue && filled && value && (
+				<Text style={[styles.passcodeValue, { color: theme.tint }]}>{value}</Text>
+			)}
+		</View>
+	);
+};
 
 export default function PasscodeScreen(): JSX.Element {
+	const { theme } = useTheme();
+	const { user, isAuthenticated } = useUserStore((state) => ({
+		user: state.user,
+		isAuthenticated: state.isAuthenticated
+	}));
+
+	// Only redirect if explicitly not authenticated
+	useEffect(() => {
+		if (isAuthenticated === false) {
+			router.replace("/auth/EmailAuthScreen");
+		}
+	}, [isAuthenticated]);
+
 	const [passcode, setPasscode] = useState<string>("");
 	const [showPasscode, setShowPasscode] = useState<boolean>(false);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -111,7 +119,7 @@ export default function PasscodeScreen(): JSX.Element {
 			setTimeout(() => {
 				if (passcode === "123456") {
 					setError("");
-					Alert.alert("Success", "Access granted!");
+					router.replace("/(tabs)");
 				} else {
 					setError("Incorrect passcode. Try again.");
 					Vibration.vibrate([0, 500, 200, 500]);
@@ -125,9 +133,8 @@ export default function PasscodeScreen(): JSX.Element {
 	const handleBiometricAuth = async() => {
 		const {success} = await LocalAuthentication.authenticateAsync()
 		if(success){
-			router.push("/(tabs)")
+			router.replace("/(tabs)")
 		}
-
 	};
 
 	const handleForgotPasscode = (): void => {
@@ -180,33 +187,33 @@ export default function PasscodeScreen(): JSX.Element {
 
 	return (
 		<SafeAreaView
-			style={[styles.container, { backgroundColor: Colors.light.background }]}
+			style={[styles.container, { backgroundColor: theme.background }]}
 		>
 			<StatusBar
-				barStyle="dark-content"
-				backgroundColor={Colors.light.background}
+				barStyle={theme.isDark ? "light-content" : "dark-content"}
+				backgroundColor={theme.background}
 			/>
 
 			{/* Header */}
 			<View style={styles.header}>
 				<View
-					style={[styles.iconContainer, { backgroundColor: Colors.light.tint }]}
+					style={[styles.iconContainer, { backgroundColor: theme.tint }]}
 				>
 					<Ionicons name="shield-checkmark" size={40} color="white" />
 				</View>
-				<Text style={[styles.title, { color: Colors.light.text }]}>
+				<Text style={[styles.title, { color: theme.text }]}>
 					Enter Passcode
 				</Text>
-				<Text style={styles.subtitle}>
+				<Text style={[styles.subtitle, { color: theme.icon }]}>
 					Secure your susu savings with your 6-digit passcode
 				</Text>
 			</View>
 
-			<Animated.View style={[styles.passcodeSection,style]}>{renderPasscodeDots()}</Animated.View>
+			<Animated.View style={[styles.passcodeSection, style]}>{renderPasscodeDots()}</Animated.View>
 
 			{error ? (
-				<View style={styles.errorContainer}>
-					<Text style={styles.errorText}>{error}</Text>
+				<View style={[styles.errorContainer, { backgroundColor: theme.card, borderColor: theme.accent }]}>
+					<Text style={[styles.errorText, { color: theme.accent }]}>{error}</Text>
 				</View>
 			) : null}
 
@@ -280,7 +287,7 @@ export default function PasscodeScreen(): JSX.Element {
 						onPress={handleBiometricAuth}
 						activeOpacity={0.7}
 					>
-						<Ionicons name="finger-print" size={36} color={Colors.light.tint} />
+						<Ionicons name="finger-print" size={36} color={theme.tint} />
 					</TouchableOpacity>
 
 					<NumberButton
@@ -298,7 +305,7 @@ export default function PasscodeScreen(): JSX.Element {
 						disabled={!passcode.length || isLoading}
 						activeOpacity={0.7}
 					>
-						<Ionicons name="backspace" size={24} color={Colors.light.icon} />
+						<Ionicons name="backspace" size={24} color={theme.icon} />
 					</TouchableOpacity>
 				</View>
 			</View>
@@ -308,7 +315,7 @@ export default function PasscodeScreen(): JSX.Element {
 				onPress={handleForgotPasscode}
 				activeOpacity={0.7}
 			>
-				<Text style={styles.forgotText}>Forgot your passcode?</Text>
+				<Text style={[styles.forgotText, { color: theme.icon }]}>Forgot your passcode?</Text>
 			</TouchableOpacity>
 		</SafeAreaView>
 	);
@@ -344,7 +351,6 @@ const styles = StyleSheet.create({
 	},
 	subtitle: {
 		fontSize: 16,
-		color: "#6B7280",
 		textAlign: "center",
 		maxWidth: 280,
 		lineHeight: 22,
