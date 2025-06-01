@@ -7,8 +7,22 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useUserStore } from '@/store/useUserStore';
+import { useEffect } from 'react';
+import useFormStore from '../store/useFormStore';
 
 export default function TabTwoScreen() {
+  const { clearForm } = useFormStore()
+  const { user, isAuthenticated, logout } = useUserStore((state) => ({
+    user: state.user,
+    isAuthenticated: state.isAuthenticated,
+    logout: state.logout
+
+  }));
+  useEffect(() => {
+    clearForm()
+    logout()
+  }, [])
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}

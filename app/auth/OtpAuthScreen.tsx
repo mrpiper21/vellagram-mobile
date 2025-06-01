@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from "@/config/api";
 import { useTheme } from "@/hooks/useTheme";
 import { useUserStore } from "@/store/useUserStore";
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -10,6 +11,7 @@ import {
     Animated,
     Easing,
     Keyboard,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -18,6 +20,7 @@ import {
     View
 } from "react-native";
 import { OtpInput } from "react-native-otp-entry";
+import useFormStore from "../store/useFormStore";
 
 const OtpAuthScreen = () => {
     const { theme } = useTheme();
@@ -25,9 +28,12 @@ const OtpAuthScreen = () => {
     const [otp, setOtp] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const setUser = useUserStore((state) => state.setUser);
     const fadeAnim = useState(new Animated.Value(0))[0];
     const slideAnim = useState(new Animated.Value(30))[0];
+    const modalAnim = useState(new Animated.Value(0))[0];
+    const { formValues } = useFormStore();
 
     React.useEffect(() => {
         Animated.parallel([
@@ -46,6 +52,16 @@ const OtpAuthScreen = () => {
         ]).start();
     }, []);
 
+    const showSuccessModalWithAnimation = () => {
+        setShowSuccessModal(true);
+        Animated.spring(modalAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11
+        }).start();
+    };
+
     const handleOtpVerify = useCallback(async (otpCode: string) => {
         if (!otpCode || otpCode.length !== 6) {
             setError("Please enter a valid 6-digit code");
@@ -62,17 +78,13 @@ const OtpAuthScreen = () => {
             });
 
             if (response.data.success) {
-                setUser({
-                    email,
-                    firstName: response.data.user?.firstName || "",
-                    lastName: response.data.user?.lastName || "",
-                    phone: response.data.user?.phone || "",
-                    profilePicture: response.data.user?.profilePicture || null,
-                    walletAddress: response.data.user?.walletAddress || null,
-                    groups: response.data.user?.groups || []
-                });
+                setUser(formValues?.user);
+                showSuccessModalWithAnimation();
 
-                router.replace("/(tabs)");
+                // Delay navigation to show success modal
+                setTimeout(() => {
+                    router.replace("/(tabs)");
+                }, 1500);
             } else {
                 setError(response.data.message || "Invalid verification code");
             }
@@ -92,18 +104,18 @@ const OtpAuthScreen = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [email, setUser]);
+    }, [email, setUser, formValues]);
+
+    console.log("user data ", formValues?.user)
 
     const handleResendOtp = async () => {
         setIsLoading(true);
         setError("");
 
         try {
-            const response = await axios.post(API_ENDPOINTS.OTP.GENERATE, {
-                email,
-                type: "numeric",
-                organization: "Vellagram",
-                subject: "OTP Verification"
+            const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, {
+                email: email,
+                password: formValues?.user?.user?.password
             });
 
             if (response.data.success) {
@@ -218,6 +230,39 @@ const OtpAuthScreen = () => {
                             </TouchableOpacity>
                     )}
                 </Animated.View>
+
+                <Modal
+                    visible={showSuccessModal}
+                    transparent
+                    animationType="none"
+                    onRequestClose={() => { }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <Animated.View
+                            style={[
+                                styles.modalContent,
+                                {
+                                    backgroundColor: theme.card,
+                                    transform: [{
+                                        scale: modalAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0.8, 1]
+                                        })
+                                    }],
+                                    opacity: modalAnim
+                                }
+                            ]}
+                        >
+                            <View style={[styles.successIcon, { backgroundColor: theme.success + '20' }]}>
+                                <Ionicons name="checkmark" size={40} color={theme.success} />
+                            </View>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>Success!</Text>
+                            <Text style={[styles.modalText, { color: theme.icon }]}>
+                                You have successfully logged in
+                            </Text>
+                        </Animated.View>
+                    </View>
+                </Modal>
             </View>
         </TouchableWithoutFeedback>
     );
@@ -300,6 +345,38 @@ const styles = StyleSheet.create({
         color: "white",
         fontSize: 16,
         fontWeight: "600",
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        padding: 24,
+        borderRadius: 20,
+        alignItems: 'center',
+        width: '80%',
+        maxWidth: 300,
+    },
+    successIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    modalText: {
+        fontSize: 16,
+        textAlign: 'center',
+        lineHeight: 24,
     },
 });
 

@@ -1,15 +1,22 @@
 import { IUserRegistrationData } from '@/@types/user-auth-types';
 import RenderRegisterProgressBar from '@/components/progress-bar/render-register-progressbar';
+import AccountInfo from '@/components/registeration-form/account-info';
 import PersonalInformation from '@/components/registeration-form/personal-info';
 import PinSetUp from '@/components/registeration-form/pin-setup';
 import WalletSetUp from '@/components/registeration-form/wallet-setUp';
+import { API_ENDPOINTS } from '@/config/api';
 import { Colors } from '@/constants/Colors';
 import { useValidateSteps } from '@/hooks/useValidateSteps';
+import axios from 'axios';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import useFormStore from '../store/useFormStore';
 
 const RegisterScreen = () => {
     const [currentStep, setCurrentStep] = useState(1);
+    const [loading, setLoading] = useState<boolean>(false)
+    const { setFormValue } = useFormStore();
     const [formData, setFormData] = useState<IUserRegistrationData>({
         firstName: '',
         lastName: '',
@@ -41,72 +48,38 @@ const RegisterScreen = () => {
     };
 
     const handleRegister = async () => {
+        setLoading(true);
         try {
             const registrationData = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                profilePicture: formData.profilePicture || "url",
                 email: formData.email,
-                phone: formData.phone,
                 password: formData.password,
-                walletAddress: walletChoice === 'connect' ? formData.walletAddress : undefined,
-                groups: formData.groups,
-                pin: formData.pin
+                confirmPassword: formData.confirmPassword,
+                phone: formData.phone,
+                pin: formData.pin,
+                confirmPin: formData.confirmPin
             };
 
-            console.log('Registration data:', registrationData);
-            Alert.alert('Success', 'Account created successfully!');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to create account. Please try again.');
+            const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, registrationData);
+
+            if (response.data.success) {
+                setFormValue("user", response.data.user)
+                router.push({
+                    pathname: "/auth/OtpAuthScreen",
+                    params: { email: formData.email }
+                });
+            } else {
+                Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
+            }
+        } catch (error: any) {
+            Alert.alert(
+                'Error',
+                error.response?.data?.message || 'Failed to create account. Please try again.'
+            );
+        } finally {
+            setLoading(false);
         }
-    };
-
-
-
-    const renderStepIndicator = () => {
-        const steps = [
-            'Personal Info',
-            'Contact Details',
-            'Security',
-            'PIN Setup',
-            'Profile Picture',
-            'Wallet Setup',
-            'Review'
-        ];
-
-        return (
-            <View style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingHorizontal: 20,
-                paddingVertical: 15,
-                flexWrap: 'wrap'
-            }}>
-                {steps.map((step, index) => (
-                    <View key={index} style={{
-                        alignItems: 'center',
-                        marginHorizontal: 4,
-                        marginVertical: 5
-                    }}>
-                        <View style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: index + 1 <= currentStep ? Colors.light.tint : Colors.light.border
-                        }} />
-                        <Text style={{
-                            fontSize: 10,
-                            color: index + 1 <= currentStep ? Colors.light.tint : Colors.light.icon,
-                            marginTop: 4,
-                            textAlign: 'center'
-                        }}>
-                            {step}
-                        </Text>
-                    </View>
-                ))}
-            </View>
-        );
     };
 
     const renderStep = () => {
@@ -114,8 +87,10 @@ const RegisterScreen = () => {
             case 1:
                 return <PersonalInformation formData={formData} updateFormData={updateFormData} />
             case 2:
-                return <PinSetUp formData={formData} updateFormData={updateFormData} />
+                return <AccountInfo formData={formData} updateFormData={updateFormData} />
             case 3:
+                return <PinSetUp formData={formData} updateFormData={updateFormData} />
+            case 4:
                 return <WalletSetUp formData={formData} setWalletChoice={setWalletChoice} walletChoice={walletChoice} updateFormData={updateFormData} />
             default:
                 return null;
@@ -123,69 +98,44 @@ const RegisterScreen = () => {
     };
 
     return (
-        <View style={{
-            flex: 1,
-            backgroundColor: Colors.light.background
-        }}>
-            {RenderRegisterProgressBar({ currentStep, totalSteps: 5 })}
-            {/* {renderStepIndicator()} */}
-
+        <View style={{ flex: 1, backgroundColor: Colors.light.background, paddingTop: 35 }}>
+            <RenderRegisterProgressBar currentStep={currentStep} totalSteps={4} />
             <ScrollView style={{ flex: 1 }}>
                 {renderStep()}
             </ScrollView>
-
-            <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                padding: 20,
-                borderTopWidth: 1,
-                borderTopColor: Colors.light.border,
-                backgroundColor: Colors.light.background
-            }}>
+            <View style={{ padding: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
                 {currentStep > 1 && (
                     <TouchableOpacity
                         style={{
-                            flex: 1,
-                            paddingVertical: 14,
+                            padding: 16,
                             borderRadius: 8,
-                            alignItems: 'center',
-                            marginRight: 10,
-                            borderWidth: 1,
-                            borderColor: Colors.light.border
+                            backgroundColor: Colors.light.card,
+                            flex: 1,
+                            marginRight: 8,
+                            alignItems: 'center'
                         }}
                         onPress={previousStep}
                     >
-                        <Text style={{
-                            fontSize: 16,
-                            fontWeight: '600',
-                            color: Colors.light.text
-                        }}>
-                            Back
-                        </Text>
+                        <Text style={{ color: Colors.light.text }}>Previous</Text>
                     </TouchableOpacity>
                 )}
-
-                {currentStep < 6 && (
-                    <TouchableOpacity
-                        style={{
-                            flex: 1,
-                            backgroundColor: Colors.light.tint,
-                            paddingVertical: 14,
-                            borderRadius: 8,
-                            alignItems: 'center',
-                            marginLeft: currentStep > 1 ? 10 : 0
-                        }}
-                        onPress={nextStep}
-                    >
-                        <Text style={{
-                            color: 'white',
-                            fontSize: 16,
-                            fontWeight: '600'
-                        }}>
-                            Continue
-                        </Text>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={{
+                        padding: 16,
+                        borderRadius: 8,
+                        backgroundColor: Colors.light.tint,
+                        flex: 1,
+                        marginLeft: currentStep > 1 ? 8 : 0,
+                        alignItems: 'center',
+                        opacity: loading ? 0.7 : 1
+                    }}
+                    onPress={currentStep === 4 ? handleRegister : nextStep}
+                    disabled={loading}
+                >
+                    <Text style={{ color: Colors.light.background }}>
+                        {loading ? 'Processing...' : currentStep === 4 ? 'Complete' : 'Next'}
+                    </Text>
+                </TouchableOpacity>
             </View>
         </View>
     );

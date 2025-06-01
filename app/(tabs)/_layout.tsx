@@ -37,10 +37,10 @@ export default function TabLayout() {
           },
         }),
       }}
-      initialRouteName="chat"
+      initialRouteName="index"
     >
       <Tabs.Screen
-        name="chat"
+        name="index"
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, size }) => (

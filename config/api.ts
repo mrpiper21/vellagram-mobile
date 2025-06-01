@@ -7,7 +7,7 @@ export const API_ENDPOINTS = {
         VERIFY: `${API_BASE_URL}/api/otp/verify`
     },
     AUTH: {
-        LOGIN: `${API_BASE_URL}/api/auth/login`,
-        REGISTER: `${API_BASE_URL}/api/auth/register`
+        LOGIN: `${API_BASE_URL}/api/users/login`,
+        REGISTER: `${API_BASE_URL}/api/users/register`
     }
 };

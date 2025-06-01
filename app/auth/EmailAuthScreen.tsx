@@ -1,6 +1,7 @@
 import VellagramLogo from "@/assets/images/Logo101";
 import { API_ENDPOINTS } from "@/config/api";
 import { useTheme } from "@/hooks/useTheme";
+import { Ionicons } from "@expo/vector-icons";
 import axios from 'axios';
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -16,12 +17,17 @@ import {
     View
 } from "react-native";
 import { TextInput } from "react-native-gesture-handler";
+import useFormStore from "../store/useFormStore";
 
 const EmailAuthScreen = () => {
     const { theme } = useTheme();
+    const { setFormValue } = useFormStore();
     const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const fadeAnim = useState(new Animated.Value(0))[0];
     const slideAnim = useState(new Animated.Value(30))[0];
 
@@ -47,6 +53,11 @@ const EmailAuthScreen = () => {
         setError(""); // Clear error when user types
     };
 
+    const handlePasswordChange = (text: string) => {
+        setPassword(text.trim());
+        setPasswordError(""); // Clear password error when user types
+    };
+
     const validateEmail = (email: string): boolean => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
@@ -69,14 +80,16 @@ const EmailAuthScreen = () => {
         }
 
         try {
-            const response = await axios.post(API_ENDPOINTS.OTP.GENERATE, {
+            const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, {
                 email: email,
-                type: "numeric",
-                organization: "Vellagram",
-                subject: "OTP Verification"
+                password: password,
             });
 
             if (response.data.success) {
+                setFormValue("user", {
+                    user: response.data.user,
+                    token: response.data.token
+                });
                 router.push({
                     pathname: "/auth/OtpAuthScreen",
                     params: { email }
@@ -103,11 +116,6 @@ const EmailAuthScreen = () => {
             setIsLoading(false);
         }
     };
-
-    // useEffect(() => {
-    //     router.replace("/(tabs)");
-
-    // }, [])
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -152,9 +160,55 @@ const EmailAuthScreen = () => {
                             ) : null}
                         </View>
 
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    {
+                                        backgroundColor: theme.card,
+                                        borderColor: passwordError ? theme.accent : theme.border,
+                                        color: theme.text
+                                    }
+                                ]}
+                                placeholder="Password"
+                                placeholderTextColor={theme.icon}
+                                value={password}
+                                onChangeText={handlePasswordChange}
+                                secureTextEntry={!showPassword}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                textContentType="password"
+                                editable={!isLoading}
+                            />
+                            <TouchableOpacity
+                                style={styles.eyeIcon}
+                                onPress={() => setShowPassword(!showPassword)}
+                            >
+                                <Ionicons
+                                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                                    size={24}
+                                    color={theme.icon}
+                                />
+                            </TouchableOpacity>
+                            {passwordError ? (
+                                <Text style={[styles.errorText, { color: theme.accent }]}>{passwordError}</Text>
+                            ) : null}
+                        </View>
+
                         <Text style={[styles.disclaimer, { color: theme.icon }]}>
                             We'll send a verification code to this email address.
                         </Text>
+
+                        <View style={styles.registerContainer}>
+                            <Text style={[styles.registerText, { color: theme.icon }]}>
+                                Don't have an account?{' '}
+                            </Text>
+                            <TouchableOpacity onPress={() => router.push("/auth/RegisterScreen")}>
+                                <Text style={[styles.registerLink, { color: theme.tint }]}>
+                                    Register
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </Animated.View>
                 </ScrollView>
 
@@ -249,6 +303,26 @@ const styles = StyleSheet.create({
     submitButtonText: {
         color: 'white',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    eyeIcon: {
+        position: 'absolute',
+        right: 12,
+        top: '50%',
+        transform: [{ translateY: -12 }],
+        zIndex: 1,
+    },
+    registerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    registerText: {
+        fontSize: 14,
+    },
+    registerLink: {
+        fontSize: 14,
         fontWeight: '600',
     },
 });
