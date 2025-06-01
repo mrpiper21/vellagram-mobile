@@ -1,8 +1,9 @@
-import { Colors } from "@/constants/Colors";
+import { useTheme } from "@/hooks/useTheme";
+import { useUserStore } from "@/store/useUserStore";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from "expo-router";
-import React, { JSX, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
 	Alert,
 	SafeAreaView,
@@ -13,25 +14,13 @@ import {
 	Vibration,
 	View,
 } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
-
-interface ColorTheme {
-	text: string;
-	background: string;
-	tint: string;
-	icon: string;
-	tabIconDefault: string;
-	tabIconSelected: string;
-	accent: string;
-	success: string;
-	secondary: string;
-	card: string;
-	border: string;
-}
-
-interface Colors {
-	light: ColorTheme;
-}
+import Animated, {
+	useAnimatedStyle,
+	useSharedValue,
+	withRepeat,
+	withSequence,
+	withTiming
+} from "react-native-reanimated";
 
 interface NumberButtonProps {
 	number: number;
@@ -45,168 +34,174 @@ const NumberButton: React.FC<NumberButtonProps> = ({
 	letters,
 	onPress,
 	disabled = false,
-}) => (
-	<TouchableOpacity
-		style={[styles.numberButton, disabled && styles.disabledButton]}
-		onPress={() => onPress(number.toString())}
-		disabled={disabled}
-		activeOpacity={0.7}
-	>
-		<Text style={styles.numberText}>{number}</Text>
-		{letters && <Text style={styles.lettersText}>{letters}</Text>}
-	</TouchableOpacity>
-);
+}) => {
+	const { theme } = useTheme();
+
+	return (
+		<TouchableOpacity
+			style={[
+				styles.numberButton,
+				{ backgroundColor: theme.card, borderColor: theme.border },
+				disabled && styles.disabledButton
+			]}
+			onPress={() => onPress(number.toString())}
+			disabled={disabled}
+			activeOpacity={0.7}
+		>
+			<Text style={[styles.numberText, { color: theme.text }]}>{number}</Text>
+			{letters && <Text style={[styles.lettersText, { color: theme.icon }]}>{letters}</Text>}
+		</TouchableOpacity>
+	);
+};
 
 interface PasscodeDotProps {
 	filled: boolean;
-	showValue: boolean;
-	value?: string;
 }
 
-const PasscodeDot: React.FC<PasscodeDotProps> = ({
-	filled,
-	showValue,
-	value,
-}) => (
-	<View
-		style={[
-			styles.passcodeDot,
-			filled
-				? showValue
-					? styles.passcodeDotFilledVisible
-					: styles.passcodeDotFilled
-				: styles.passcodeDotEmpty,
-		]}
-	>
-		{showValue && filled && value && (
-			<Text style={styles.passcodeValue}>{value}</Text>
-		)}
-	</View>
-);
+const PasscodeDot: React.FC<PasscodeDotProps> = ({ filled }) => {
+	const { theme } = useTheme();
 
-export default function PasscodeScreen(): JSX.Element {
-	const [passcode, setPasscode] = useState<string>("");
-	const [showPasscode, setShowPasscode] = useState<boolean>(false);
-	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [error, setError] = useState<string>("");
+	return (
+		<View
+			style={[
+				styles.passcodeDot,
+				filled
+					? [styles.passcodeDotFilled, { backgroundColor: theme.tint }]
+					: [styles.passcodeDotEmpty, { borderColor: theme.border }],
+			]}
+		/>
+	);
+};
+
+export default function PasscodeScreen() {
+	const { theme } = useTheme();
+	const { isAuthenticated } = useUserStore();
+	const [passcode, setPasscode] = useState("");
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState("");
+
+	// Handle authentication state
+	// useEffect(() => {
+	// 	if (isAuthenticated === false) {
+	// 		router.replace("/auth/EmailAuthScreen");
+	// 	}
+	// }, [isAuthenticated]);
 
 	const handleNumberPress = (number: string): void => {
 		if (passcode.length < 6) {
-			setPasscode((prev) => prev + number);
+			const newPasscode = passcode + number;
+			setPasscode(newPasscode);
 			setError("");
+
+			// Auto-submit when passcode is complete
+			if (newPasscode.length === 6) {
+				handleSubmit(newPasscode);
+			}
 		}
 	};
 
 	const handleDelete = (): void => {
-		setPasscode((prev) => prev.slice(0, -1));
+		if (passcode.length > 0) {
+			setPasscode(prev => prev.slice(0, -1));
+			setError("");
+		}
+	};
+
+	const OFFSET = 20;
+	const TIME = 80;
+	const offset = useSharedValue(0);
+
+	const handleSubmit = useCallback(async (submittedPasscode: string) => {
+		setIsLoading(true);
 		setError("");
-		Vibration.vibrate(50);
-	};
 
-	const handleSubmit = async (): Promise<void> => {
-		if (passcode.length === 6) {
-			setIsLoading(true);
+		try {
+			// Simulate API call
+			await new Promise(resolve => setTimeout(resolve, 500));
 
-			// Simulate authentication
-			setTimeout(() => {
-				if (passcode === "123456") {
-					setError("");
-					Alert.alert("Success", "Access granted!");
-				} else {
-					setError("Incorrect passcode. Try again.");
-					Vibration.vibrate([0, 500, 200, 500]);
-				}
-				setIsLoading(false);
-				setPasscode("");
-			}, 1500);
+			// Replace with actual authentication logic
+			if (submittedPasscode === "123456") {
+				router.replace("/(tabs)");
+			} else {
+				// Shake animation for wrong passcode
+				offset.value = withSequence(
+					withTiming(-OFFSET, { duration: TIME / 2 }),
+					withRepeat(withTiming(OFFSET, { duration: TIME }), 4, true),
+					withTiming(0, { duration: TIME / 2 })
+				);
+				Vibration.vibrate([0, 500, 200, 500]);
+				setError("Incorrect passcode. Try again.");
+			}
+		} catch (err) {
+			setError("Authentication failed. Please try again.");
+		} finally {
+			setIsLoading(false);
+			setPasscode("");
+		}
+	}, [offset]);
+
+	const handleBiometricAuth = async () => {
+		try {
+			const { success } = await LocalAuthentication.authenticateAsync({
+				promptMessage: "Authenticate to access your account"
+			});
+
+			if (success) {
+				router.replace("/(tabs)");
+			}
+		} catch (error) {
+			setError("Biometric authentication failed");
 		}
 	};
 
-	const handleBiometricAuth = async() => {
-		const {success} = await LocalAuthentication.authenticateAsync()
-		if(success){
-			router.push("/(tabs)")
-		}
-
-	};
-
-	const handleForgotPasscode = (): void => {
+	const handleForgotPasscode = () => {
 		Alert.alert(
-			"Forgot Passcode",
-			"Contact support or use account recovery options",
+			"Forgot Passcode?",
+			"Please contact support to reset your passcode",
 			[{ text: "OK" }]
 		);
 	};
 
-	const renderPasscodeDots = (): JSX.Element => (
-		<View style={styles.passcodeContainer}>
-			{[...Array(6)].map((_, index) => (
-				<PasscodeDot
-					key={index}
-					filled={index < passcode.length}
-					showValue={showPasscode}
-					value={passcode[index]}
-				/>
-			))}
-		</View>
-	);
+	const animatedStyle = useAnimatedStyle(() => ({
+		transform: [{ translateX: offset.value }]
+	}));
 
-	const OFFSET = 20
-	const TIME = 80;
-
-	useEffect(() => {
-		if (passcode.length === 6) {
-			if (passcode === "111111") {
-				router.replace("/(tabs)");
-				setPasscode("");
-			} else {
-				offset.value = withSequence(
-					withTiming(-OFFSET, {duration: TIME /2}),
-					withRepeat(withTiming(OFFSET, {duration: TIME}), 4, true),
-					withTiming(0, {duration: TIME / 2})
-				)
-				Vibration.vibrate(50);
-				setPasscode("");
-			}
-		}
-	}, [passcode]);
-
-	const offset = useSharedValue(0)
-	const style = useAnimatedStyle(()=> {
-		return {
-			transform: [{translateX: offset.value}]
-		}
-	})
+	if (isAuthenticated === false) {
+		return (
+			<View style={{ flex: 1, backgroundColor: theme.background }} />
+		);
+	}
 
 	return (
-		<SafeAreaView
-			style={[styles.container, { backgroundColor: Colors.light.background }]}
-		>
+		<SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
 			<StatusBar
-				barStyle="dark-content"
-				backgroundColor={Colors.light.background}
+				barStyle={theme.isDark ? "light-content" : "dark-content"}
+				backgroundColor={theme.background}
 			/>
 
-			{/* Header */}
 			<View style={styles.header}>
-				<View
-					style={[styles.iconContainer, { backgroundColor: Colors.light.tint }]}
-				>
+				<View style={[styles.iconContainer, { backgroundColor: theme.tint }]}>
 					<Ionicons name="shield-checkmark" size={40} color="white" />
 				</View>
-				<Text style={[styles.title, { color: Colors.light.text }]}>
+				<Text style={[styles.title, { color: theme.text }]}>
 					Enter Passcode
 				</Text>
-				<Text style={styles.subtitle}>
-					Secure your susu savings with your 6-digit passcode
+				<Text style={[styles.subtitle, { color: theme.icon }]}>
+					Secure your account with your 6-digit passcode
 				</Text>
 			</View>
 
-			<Animated.View style={[styles.passcodeSection,style]}>{renderPasscodeDots()}</Animated.View>
+			<Animated.View style={[styles.passcodeSection, animatedStyle]}>
+				<View style={styles.passcodeContainer}>
+					{Array.from({ length: 6 }).map((_, index) => (
+						<PasscodeDot key={index} filled={index < passcode.length} />
+					))}
+				</View>
+			</Animated.View>
 
 			{error ? (
-				<View style={styles.errorContainer}>
-					<Text style={styles.errorText}>{error}</Text>
+				<View style={[styles.errorContainer, { backgroundColor: theme.card }]}>
+					<Text style={[styles.errorText, { color: theme.accent }]}>{error}</Text>
 				</View>
 			) : null}
 
@@ -214,19 +209,19 @@ export default function PasscodeScreen(): JSX.Element {
 				<View style={styles.numberRow}>
 					<NumberButton
 						number={1}
-						letters="ABC"
+						letters=""
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={2}
-						letters="DEF"
+						letters="ABC"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={3}
-						letters="GHI"
+						letters="DEF"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
@@ -235,19 +230,19 @@ export default function PasscodeScreen(): JSX.Element {
 				<View style={styles.numberRow}>
 					<NumberButton
 						number={4}
-						letters="JKL"
+						letters="GHI"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={5}
-						letters="MNO"
+						letters="JKL"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={6}
-						letters="PQR"
+						letters="MNO"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
@@ -256,19 +251,19 @@ export default function PasscodeScreen(): JSX.Element {
 				<View style={styles.numberRow}>
 					<NumberButton
 						number={7}
-						letters="STU"
+						letters="PQRS"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={8}
-						letters="VWX"
+						letters="TUV"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
 					<NumberButton
 						number={9}
-						letters="YZ"
+						letters="WXYZ"
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
@@ -278,9 +273,10 @@ export default function PasscodeScreen(): JSX.Element {
 					<TouchableOpacity
 						style={styles.biometricButton}
 						onPress={handleBiometricAuth}
+						disabled={isLoading}
 						activeOpacity={0.7}
 					>
-						<Ionicons name="finger-print" size={36} color={Colors.light.tint} />
+						<Ionicons name="finger-print" size={36} color={theme.tint} />
 					</TouchableOpacity>
 
 					<NumberButton
@@ -292,23 +288,25 @@ export default function PasscodeScreen(): JSX.Element {
 					<TouchableOpacity
 						style={[
 							styles.actionButton,
-							(!passcode.length || isLoading) && styles.disabledButton,
+							(passcode.length === 0 || isLoading) && styles.disabledButton,
 						]}
 						onPress={handleDelete}
-						disabled={!passcode.length || isLoading}
+						disabled={passcode.length === 0 || isLoading}
 						activeOpacity={0.7}
 					>
-						<Ionicons name="backspace" size={24} color={Colors.light.icon} />
+						<Ionicons name="backspace" size={24} color={theme.icon} />
 					</TouchableOpacity>
 				</View>
 			</View>
-			{/* Forgot Passcode */}
+
 			<TouchableOpacity
 				style={styles.forgotButton}
 				onPress={handleForgotPasscode}
 				activeOpacity={0.7}
 			>
-				<Text style={styles.forgotText}>Forgot your passcode?</Text>
+				<Text style={[styles.forgotText, { color: theme.icon }]}>
+					Forgot your passcode?
+				</Text>
 			</TouchableOpacity>
 		</SafeAreaView>
 	);
@@ -331,11 +329,6 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		marginBottom: 24,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.1,
-		shadowRadius: 8,
-		elevation: 4,
 	},
 	title: {
 		fontSize: 28,
@@ -344,7 +337,6 @@ const styles = StyleSheet.create({
 	},
 	subtitle: {
 		fontSize: 16,
-		color: "#6B7280",
 		textAlign: "center",
 		maxWidth: 280,
 		lineHeight: 22,
@@ -363,38 +355,22 @@ const styles = StyleSheet.create({
 		height: 16,
 		borderRadius: 8,
 		borderWidth: 2,
-		alignItems: "center",
-		justifyContent: "center",
 	},
 	passcodeDotEmpty: {
 		backgroundColor: "transparent",
-		borderColor: "#D1D5DB",
 	},
 	passcodeDotFilled: {
-		backgroundColor: "#0891B2",
-		borderColor: "#0891B2",
-	},
-	passcodeDotFilledVisible: {
-		backgroundColor: "transparent",
-		borderColor: "#0891B2",
-	},
-	passcodeValue: {
-		fontSize: 12,
-		fontWeight: "600",
-		color: "#0891B2",
+		borderColor: "transparent",
 	},
 	errorContainer: {
-		backgroundColor: "#FEF2F2",
-		borderColor: "#FECACA",
-		borderWidth: 1,
 		borderRadius: 8,
 		paddingVertical: 8,
 		paddingHorizontal: 16,
 		marginBottom: 24,
 		alignSelf: "stretch",
+		alignItems: "center",
 	},
 	errorText: {
-		color: "#DC2626",
 		fontSize: 14,
 		textAlign: "center",
 	},
@@ -413,72 +389,34 @@ const styles = StyleSheet.create({
 		width: 80,
 		height: 80,
 		borderRadius: 40,
-		backgroundColor: "white",
 		borderWidth: 1,
-		borderColor: "#E5E7EB",
 		alignItems: "center",
 		justifyContent: "center",
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 4,
-		elevation: 2,
 	},
 	numberText: {
 		fontSize: 24,
 		fontWeight: "600",
-		color: "#374151",
 	},
 	lettersText: {
 		fontSize: 12,
-		color: "#9CA3AF",
 		marginTop: 2,
 	},
 	actionButton: {
 		width: 80,
 		height: 80,
 		borderRadius: 40,
-		backgroundColor: "white",
 		borderWidth: 1,
-		borderColor: "#E5E7EB",
 		alignItems: "center",
 		justifyContent: "center",
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 4,
-		elevation: 2,
+	},
+	biometricButton: {
+		width: 80,
+		height: 80,
+		alignItems: "center",
+		justifyContent: "center",
 	},
 	disabledButton: {
 		opacity: 0.5,
-	},
-	submitButton: {
-		paddingVertical: 16,
-		borderRadius: 12,
-		alignItems: "center",
-		marginBottom: 32,
-	},
-	submitButtonText: {
-		color: "white",
-		fontSize: 18,
-		fontWeight: "600",
-	},
-	loadingContainer: {
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	biometricButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingVertical: 12,
-		paddingHorizontal: 24,
-		borderRadius: 8,
-		marginBottom: 16,
-	},
-	biometricText: {
-		fontSize: 16,
-		marginLeft: 8,
 	},
 	forgotButton: {
 		alignItems: "center",
@@ -486,6 +424,5 @@ const styles = StyleSheet.create({
 	},
 	forgotText: {
 		fontSize: 14,
-		color: "#9CA3AF",
 	},
 });
