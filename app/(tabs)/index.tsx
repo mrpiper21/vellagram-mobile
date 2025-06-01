@@ -163,17 +163,13 @@ export default function ChatTab() {
 		]}>
 			{/* Header */}
 			<View style={styles.header}>
-				<Text style={[
+				<TouchableOpacity>
+					<Text style={[
 					styles.headerTitle,
 					{ color: appColors.text }
 				]}>
 					Chats
-				</Text>
-				<TouchableOpacity
-					style={styles.createButton}
-					onPress={() => setShowCreateGroup(true)}
-				>
-					<Ionicons name="add" size={24} color={appColors.text} />
+					</Text>
 				</TouchableOpacity>
 			</View>
 
@@ -255,8 +251,9 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		paddingHorizontal: 16,
-		paddingTop: 16,
+		paddingTop: 30,
 		paddingBottom: 12,
+		borderBottomWidth: .5
 	},
 	headerTitle: {
 		fontSize: 28,

@@ -215,7 +215,7 @@ const OtpAuthScreen = () => {
                             activeOpacity={0.8}
                         >
                             <Text style={styles.resendButtonText}>Resend Code</Text>
-                        </TouchableOpacity>
+                            </TouchableOpacity>
                     )}
                 </Animated.View>
             </View>

@@ -83,15 +83,59 @@ export default function ConversationDetail() {
             </View>
 
             {/* Messages */}
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                keyExtractor={item => item.id}
-                renderItem={renderMessage}
-                contentContainerStyle={styles.messagesList}
-                showsVerticalScrollIndicator={false}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            />
+            <View style={[styles.messagesContainer, { backgroundColor: appColors.background }]}>
+                <View style={[styles.backgroundPattern, { backgroundColor: appColors.background }]}>
+                    <View style={styles.patternGrid}>
+                        {[...Array(6)].map((_, rowIndex) => (
+                            <View key={rowIndex} style={styles.patternRow}>
+                                {[...Array(8)].map((_, colIndex) => (
+                                    <View key={colIndex} style={[
+                                        styles.patternDot,
+                                        {
+                                            opacity: 0.1,
+                                            backgroundColor: appColors.tint,
+                                            transform: [
+                                                { scale: (rowIndex + colIndex) % 2 === 0 ? 1 : 0.8 }
+                                            ]
+                                        }
+                                    ]} />
+                                ))}
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.randomElements}>
+                        {[...Array(12)].map((_, index) => (
+                            <View
+                                key={index}
+                                style={[
+                                    styles.randomElement,
+                                    {
+                                        backgroundColor: appColors.tint,
+                                        opacity: 0.03,
+                                        width: Math.random() * 40 + 20,
+                                        height: Math.random() * 40 + 20,
+                                        borderRadius: Math.random() * 20,
+                                        top: `${Math.random() * 100}%`,
+                                        left: `${Math.random() * 100}%`,
+                                        transform: [
+                                            { rotate: `${Math.random() * 360}deg` }
+                                        ]
+                                    }
+                                ]}
+                            />
+                        ))}
+                    </View>
+                </View>
+                <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={item => item.id}
+                    renderItem={renderMessage}
+                    contentContainerStyle={styles.messagesList}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                />
+            </View>
 
             {/* Input Bar */}
             <KeyboardAvoidingView
@@ -150,10 +194,45 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         flex: 1,
     },
+    messagesContainer: {
+        flex: 1,
+        position: 'relative',
+    },
+    backgroundPattern: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    patternGrid: {
+        flex: 1,
+        justifyContent: 'space-around',
+        paddingVertical: 20,
+    },
+    patternRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingVertical: 15,
+    },
+    patternDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    randomElements: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+    },
+    randomElement: {
+        position: 'absolute',
+    },
     messagesList: {
-        flexGrow: 1,
-        padding: 12,
-        paddingBottom: 4,
+        padding: 16,
     },
     messageRow: {
         flexDirection: "row",
@@ -162,31 +241,40 @@ const styles = StyleSheet.create({
     bubble: {
         maxWidth: "80%",
         borderRadius: 18,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
         marginHorizontal: 4,
+        marginVertical: 4,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+        elevation: 2,
     },
     timeText: {
         fontSize: 11,
-        color: "#bbb",
+        color: "#8E8E93",
         marginTop: 4,
         alignSelf: "flex-end",
     },
     inputBar: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 10,
-        paddingVertical: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
         borderTopWidth: 0.5,
-        borderTopColor: "#ddd",
+        borderTopColor: "#E5E5EA",
     },
     input: {
         flex: 1,
         fontSize: 16,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
         borderRadius: 20,
-        backgroundColor: "#f0f0f0",
+        backgroundColor: "#F2F2F7",
         marginRight: 8,
     },
     sendButton: {

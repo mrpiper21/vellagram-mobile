@@ -29,6 +29,7 @@ export default function RootLayout() {
 						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 						<Stack.Screen name="+not-found" />
 						<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
+						<Stack.Screen name="conversation" options={{ headerShown: false }} />
 					</Stack>
 					<StatusBar style="auto" />
 				</ThemeProvider>
