@@ -271,7 +271,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 0.5,
-        borderBottomColor: "#ddd",
+        borderBottomColor: "rgba(150, 150, 150, 0.2)",
+        paddingTop: 35
     },
     headerTitle: {
         fontSize: 20,
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     tabContainer: {
         flexDirection: "row",
         borderBottomWidth: 0.5,
-        borderBottomColor: "#ddd",
+        borderBottomColor: "rgba(150, 150, 150, 0.2)",
     },
     tab: {
         flex: 1,
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
         borderRadius: 0,
         marginBottom: 0,
         borderBottomWidth: 0.5,
-        borderBottomColor: "#ddd",
+        borderBottomColor: "rgba(150, 150, 150, 0.2)",
     },
     avatarContainer: {
         width: 48,

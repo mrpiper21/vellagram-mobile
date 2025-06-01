@@ -1,11 +1,14 @@
 import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { AnnouncementBanner } from "./components/AnnouncementBanner";
+import { GroupDetailsSheet } from "./components/GroupDetailsSheet";
+import { Header } from "./components/Header";
+import { MenuDropdown } from "./components/MenuDropdown";
 
-// Dummy messages for demonstration
 const dummyMessages = [
     { id: "1", text: "Welcome to the group!", sender: "other", time: "09:00" },
     { id: "2", text: "Hi everyone 👋", sender: "me", time: "09:01" },
@@ -21,7 +24,48 @@ export default function ConversationDetail() {
 
     const [messages, setMessages] = useState(dummyMessages);
     const [input, setInput] = useState("");
+    const [showMenu, setShowMenu] = useState(false);
+    const [showDetails, setShowDetails] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+    const menuAnimation = useRef(new Animated.Value(0)).current;
+    const detailsAnimation = useRef(new Animated.Value(0)).current;
+
+    const toggleMenu = () => {
+        const toValue = showMenu ? 0 : 1;
+        setShowMenu(!showMenu);
+        Animated.spring(menuAnimation, {
+            toValue,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11
+        }).start();
+    };
+
+    const toggleDetails = () => {
+        const toValue = showDetails ? 0 : 1;
+        setShowDetails(!showDetails);
+        Animated.spring(detailsAnimation, {
+            toValue,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11
+        }).start();
+    };
+
+    const handleMenuOption = (optionId: string) => {
+        toggleMenu();
+        switch (optionId) {
+            case 'details':
+                toggleDetails();
+                break;
+            case 'payment':
+                // Handle payment history
+                break;
+            case 'leave':
+                // Handle leave group
+                break;
+        }
+    };
 
     const handleSend = () => {
         if (input.trim()) {
@@ -32,6 +76,11 @@ export default function ConversationDetail() {
             setInput("");
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
+    };
+
+    const handleChatPress = (memberId: string) => {
+        // Navigate to individual chat
+        // router.push(`/chat/${memberId}`);
     };
 
     // Simulate group info (you can fetch real data)
@@ -69,18 +118,32 @@ export default function ConversationDetail() {
 
     return (
         <View style={[styles.container, { backgroundColor: appColors.background }]}>
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: appColors.card }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={appColors.text} />
-                </TouchableOpacity>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{group.avatar}</Text>
-                </View>
-                <Text style={[styles.groupName, { color: appColors.text }]} numberOfLines={1}>
-                    {group.name}
-                </Text>
-            </View>
+            <Header
+                groupName={group.name}
+                groupAvatar={group.avatar}
+                onMenuPress={toggleMenu}
+            />
+
+            <AnnouncementBanner
+                title="Announcement"
+                message="Next Repayment of GHS 200 due on 10th June"
+            />
+
+            <MenuDropdown
+                visible={showMenu}
+                onClose={toggleMenu}
+                onOptionPress={handleMenuOption}
+                animation={menuAnimation}
+            />
+
+            <GroupDetailsSheet
+                visible={showDetails}
+                onClose={toggleDetails}
+                groupName={group.name}
+                groupAvatar={group.avatar}
+                animation={detailsAnimation}
+                onChatPress={handleChatPress}
+            />
 
             {/* Messages */}
             <View style={[styles.messagesContainer, { backgroundColor: appColors.background }]}>
@@ -140,21 +203,34 @@ export default function ConversationDetail() {
             {/* Input Bar */}
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
-                keyboardVerticalOffset={80}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+                style={styles.keyboardAvoid}
             >
                 <View style={[styles.inputBar, { backgroundColor: appColors.card }]}>
-                    <TextInput
-                        style={[styles.input, { color: appColors.text }]}
-                        placeholder="Type a message"
-                        placeholderTextColor={appColors.icon}
-                        value={input}
-                        onChangeText={setInput}
-                        onSubmitEditing={handleSend}
-                        returnKeyType="send"
-                    />
-                    <TouchableOpacity onPress={handleSend} style={styles.sendButton}>
-                        <Ionicons name="send" size={22} color={appColors.tint} />
-                    </TouchableOpacity>
+                    <View style={[styles.inputContainer, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
+                        <TextInput
+                            style={[styles.input, { color: appColors.text }]}
+                            placeholder="Type a message"
+                            placeholderTextColor={appColors.icon}
+                            value={input}
+                            onChangeText={setInput}
+                            onSubmitEditing={handleSend}
+                            returnKeyType="send"
+                            multiline
+                            maxLength={500}
+                            textAlignVertical="center"
+                        />
+                        <TouchableOpacity
+                            onPress={handleSend}
+                            style={[
+                                styles.sendButton,
+                                { opacity: input.trim() ? 1 : 0.5 }
+                            ]}
+                            disabled={!input.trim()}
+                        >
+                            <Ionicons name="send" size={22} color={appColors.tint} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </KeyboardAvoidingView>
         </View>
@@ -163,37 +239,6 @@ export default function ConversationDetail() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderBottomWidth: 0.5,
-        borderBottomColor: "#ddd",
-    },
-    backButton: {
-        marginRight: 8,
-        padding: 4,
-    },
-    avatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "#25D366",
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: 10,
-    },
-    avatarText: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 18,
-    },
-    groupName: {
-        fontSize: 18,
-        fontWeight: "600",
-        flex: 1,
-    },
     messagesContainer: {
         flex: 1,
         position: 'relative',
@@ -260,24 +305,32 @@ const styles = StyleSheet.create({
         marginTop: 4,
         alignSelf: "flex-end",
     },
+    keyboardAvoid: {
+        width: '100%',
+    },
     inputBar: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
         borderTopWidth: 0.5,
-        borderTopColor: "#E5E5EA",
+        borderTopColor: 'rgba(150, 150, 150, 0.2)',
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        // backgroundColor: "red"
     },
     input: {
         flex: 1,
         fontSize: 16,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        backgroundColor: "#F2F2F7",
-        marginRight: 8,
+        maxHeight: 100,
+        paddingTop: Platform.OS === 'ios' ? 8 : 0,
+        paddingBottom: Platform.OS === 'ios' ? 8 : 0,
     },
     sendButton: {
-        padding: 6,
+        padding: 8,
+        marginLeft: 4,
     },
 });
