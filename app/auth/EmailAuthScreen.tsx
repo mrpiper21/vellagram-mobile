@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from "@/config/api";
 import { useTheme } from "@/hooks/useTheme";
 import axios from 'axios';
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
     Animated,
     Easing,
@@ -104,10 +104,10 @@ const EmailAuthScreen = () => {
         }
     };
 
-    useEffect(() => {
-        router.replace("/(tabs)");
+    // useEffect(() => {
+    //     router.replace("/(tabs)");
 
-    }, [])
+    // }, [])
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>

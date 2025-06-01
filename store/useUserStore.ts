@@ -15,7 +15,7 @@ export const useUserStore = create<UserState>()(
     persist(
         (set) => ({
             user: null,
-            isAuthenticated: false,
+            isAuthenticated: true,
             setUser: (user) => set({ user, isAuthenticated: !!user }),
             logout: () => set({ user: null, isAuthenticated: false }),
             updateUser: (updates) =>
@@ -24,8 +24,8 @@ export const useUserStore = create<UserState>()(
                 })),
         }),
         {
-            name: "user-storage", // unique name for the storage
-            storage: createJSONStorage(() => AsyncStorage), // use AsyncStorage
+            name: "user-storage",
+            storage: createJSONStorage(() => AsyncStorage),
         }
     )
 );

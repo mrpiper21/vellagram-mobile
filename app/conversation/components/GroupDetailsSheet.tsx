@@ -27,8 +27,12 @@ export const GroupDetailsSheet: React.FC<GroupDetailsSheetProps> = ({
     const colorScheme = theme.isDark ? "dark" : "light";
     const appColors = Colors[colorScheme];
     const membersSheetRef = useRef<BottomSheetModal>(null);
+    const isAnimating = useRef(false);
 
     const handleMembersPress = useCallback(() => {
+        if (isAnimating.current) return;
+        isAnimating.current = true;
+
         // First close the details sheet
         Animated.spring(animation, {
             toValue: 0,
@@ -37,10 +41,11 @@ export const GroupDetailsSheet: React.FC<GroupDetailsSheetProps> = ({
             friction: 11
         }).start(() => {
             onClose();
-            // Then open the members sheet
+            // Then open the members sheet after a short delay
             setTimeout(() => {
                 membersSheetRef.current?.present();
-            }, 100);
+                isAnimating.current = false;
+            }, 300);
         });
     }, [animation, onClose]);
 
