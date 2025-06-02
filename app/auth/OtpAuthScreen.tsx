@@ -3,8 +3,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useUserStore } from "@/store/useUserStore";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { router } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -22,18 +22,43 @@ import {
 import { OtpInput } from "react-native-otp-entry";
 import useFormStore from "../store/useFormStore";
 
+const RESEND_TIMER = 60; // 60 seconds
+
 const OtpAuthScreen = () => {
     const { theme } = useTheme();
-    const { email } = useLocalSearchParams<{ email: string }>();
     const [otp, setOtp] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [resendTimer, setResendTimer] = useState(RESEND_TIMER);
+    const [canResend, setCanResend] = useState(false);
     const setUser = useUserStore((state) => state.setUser);
     const fadeAnim = useState(new Animated.Value(0))[0];
     const slideAnim = useState(new Animated.Value(30))[0];
     const modalAnim = useState(new Animated.Value(0))[0];
-    const { formValues } = useFormStore();
+    const { formValues, clearForm } = useFormStore();
+
+    useEffect(() => {
+        // If no user data, redirect to login
+        if (!formValues?.user) {
+            router.replace("/auth/EmailAuthScreen");
+            return;
+        }
+
+        // Start the resend timer
+        const timer = setInterval(() => {
+            setResendTimer((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    setCanResend(true);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [formValues]);
 
     React.useEffect(() => {
         Animated.parallel([
@@ -68,18 +93,30 @@ const OtpAuthScreen = () => {
             return;
         }
 
+        if (!formValues?.user?.user) {
+            setError("Session expired. Please login again.");
+            router.replace("/auth/EmailAuthScreen");
+            return;
+        }
+
         setIsLoading(true);
         setError("");
 
         try {
             const response = await axios.post(API_ENDPOINTS.OTP.VERIFY, {
-                email,
-                otp: otpCode
+                email: formValues.user.user.email,
+                otp: otpCode,
+                token: formValues.user.token
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${formValues.user.token}`
+                }
             });
 
             if (response.data.success) {
-                setUser(formValues?.user);
+                setUser(formValues.user.user);
                 showSuccessModalWithAnimation();
+                clearForm();
 
                 // Delay navigation to show success modal
                 setTimeout(() => {
@@ -104,18 +141,20 @@ const OtpAuthScreen = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [email, setUser, formValues]);
-
-    console.log("user data ", formValues?.user)
+    }, [setUser, formValues, clearForm]);
 
     const handleResendOtp = async () => {
+        if (!canResend || !formValues?.user?.user) return;
+
         setIsLoading(true);
         setError("");
+        setCanResend(false);
+        setResendTimer(RESEND_TIMER);
 
         try {
             const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, {
-                email: email,
-                password: formValues?.user?.user?.password
+                email: formValues.user.user.email,
+                password: formValues.user.user.password
             });
 
             if (response.data.success) {
@@ -141,6 +180,21 @@ const OtpAuthScreen = () => {
         }
     };
 
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // If no user data, show loading or redirect
+    if (!formValues?.user?.user) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.tint} />
+            </View>
+        );
+    }
+
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -154,7 +208,7 @@ const OtpAuthScreen = () => {
                     }]}>
                         <Text style={[styles.title, { color: theme.text }]}>Enter Verification Code</Text>
                         <Text style={[styles.subtitle, { color: theme.icon }]}>
-                            We've sent a 6-digit code to {email}
+                            We've sent a 6-digit code to {formValues.user.user.email}
                         </Text>
 
                         <View style={styles.otpWrapper}>
@@ -211,7 +265,7 @@ const OtpAuthScreen = () => {
                         </View>
 
                         <Text style={[styles.disclaimer, { color: theme.icon }]}>
-                            Didn't receive the code? You can request a new one.
+                            Didn't receive the code? {canResend ? "You can request a new one." : `Please wait ${formatTime(resendTimer)}`}
                         </Text>
                     </Animated.View>
                 </ScrollView>
@@ -221,12 +275,17 @@ const OtpAuthScreen = () => {
                         <ActivityIndicator size="small" color={theme.tint} />
                     ) : (
                         <TouchableOpacity
-                            style={[styles.resendButton, { backgroundColor: theme.tint }]}
+                                style={[
+                                    styles.resendButton,
+                                    { backgroundColor: canResend ? theme.tint : theme.border }
+                                ]}
                             onPress={handleResendOtp}
-                            disabled={isLoading}
+                                disabled={!canResend || isLoading}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.resendButtonText}>Resend Code</Text>
+                                <Text style={styles.resendButtonText}>
+                                    {canResend ? "Resend Code" : `Resend in ${formatTime(resendTimer)}`}
+                                </Text>
                             </TouchableOpacity>
                     )}
                 </Animated.View>

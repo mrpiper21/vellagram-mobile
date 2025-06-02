@@ -4,7 +4,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import axios from 'axios';
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Animated,
     Easing,
@@ -21,7 +21,7 @@ import useFormStore from "../store/useFormStore";
 
 const EmailAuthScreen = () => {
     const { theme } = useTheme();
-    const { setFormValue } = useFormStore();
+    const { setFormValue, formValues } = useFormStore();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +30,16 @@ const EmailAuthScreen = () => {
     const [showPassword, setShowPassword] = useState(false);
     const fadeAnim = useState(new Animated.Value(0))[0];
     const slideAnim = useState(new Animated.Value(30))[0];
+
+    useEffect(() => {
+        // Check if user data exists in formValues
+        if (formValues?.user) {
+            router.push({
+                pathname: "/auth/OtpAuthScreen",
+                params: { email: formValues.user.user.email }
+            });
+        }
+    }, [formValues]);
 
     React.useEffect(() => {
         Animated.parallel([
@@ -87,9 +97,13 @@ const EmailAuthScreen = () => {
 
             if (response.data.success) {
                 setFormValue("user", {
-                    user: response.data.user,
-                    token: response.data.token
+                    user: {
+                        ...response.data.user,
+                        password
+                    },
+                    token: response.data.user.token
                 });
+
                 router.push({
                     pathname: "/auth/OtpAuthScreen",
                     params: { email }

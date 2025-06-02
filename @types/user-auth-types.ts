@@ -8,6 +8,7 @@ export interface IUser {
     walletAddress?: `0x${string}` | null;
     password?: string;
     groups: Group[];
+    token?: string
 }
 
 export interface IUserRegistrationData extends IUser  {

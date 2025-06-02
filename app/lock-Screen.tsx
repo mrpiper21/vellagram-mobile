@@ -75,7 +75,7 @@ const PasscodeDot: React.FC<PasscodeDotProps> = ({ filled }) => {
 
 export default function PasscodeScreen() {
 	const { theme } = useTheme();
-	const { isAuthenticated } = useUserStore();
+	const { isAuthenticated, user } = useUserStore();
 	const [passcode, setPasscode] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -88,13 +88,13 @@ export default function PasscodeScreen() {
 	// }, [isAuthenticated]);
 
 	const handleNumberPress = (number: string): void => {
-		if (passcode.length < 6) {
+		if (passcode.length < 4) {
 			const newPasscode = passcode + number;
 			setPasscode(newPasscode);
 			setError("");
 
 			// Auto-submit when passcode is complete
-			if (newPasscode.length === 6) {
+			if (newPasscode.length === 4) {
 				handleSubmit(newPasscode);
 			}
 		}
@@ -120,7 +120,7 @@ export default function PasscodeScreen() {
 			await new Promise(resolve => setTimeout(resolve, 500));
 
 			// Replace with actual authentication logic
-			if (submittedPasscode === "123456") {
+			if (submittedPasscode === user?.pin) {
 				router.replace("/(tabs)");
 			} else {
 				// Shake animation for wrong passcode
@@ -187,13 +187,13 @@ export default function PasscodeScreen() {
 					Enter Passcode
 				</Text>
 				<Text style={[styles.subtitle, { color: theme.icon }]}>
-					Secure your account with your 6-digit passcode
+					Secure your account with your 4-digit passcode
 				</Text>
 			</View>
 
 			<Animated.View style={[styles.passcodeSection, animatedStyle]}>
 				<View style={styles.passcodeContainer}>
-					{Array.from({ length: 6 }).map((_, index) => (
+					{Array.from({ length: 4 }).map((_, index) => (
 						<PasscodeDot key={index} filled={index < passcode.length} />
 					))}
 				</View>
@@ -271,30 +271,23 @@ export default function PasscodeScreen() {
 
 				<View style={styles.numberRow}>
 					<TouchableOpacity
-						style={styles.biometricButton}
+						style={[styles.numberButton, { backgroundColor: theme.card }]}
 						onPress={handleBiometricAuth}
 						disabled={isLoading}
-						activeOpacity={0.7}
 					>
-						<Ionicons name="finger-print" size={36} color={theme.tint} />
+						<Ionicons name="finger-print" size={24} color={theme.text} />
 					</TouchableOpacity>
-
 					<NumberButton
 						number={0}
 						onPress={handleNumberPress}
 						disabled={isLoading}
 					/>
-
 					<TouchableOpacity
-						style={[
-							styles.actionButton,
-							(passcode.length === 0 || isLoading) && styles.disabledButton,
-						]}
+						style={[styles.numberButton, { backgroundColor: theme.card }]}
 						onPress={handleDelete}
-						disabled={passcode.length === 0 || isLoading}
-						activeOpacity={0.7}
+						disabled={isLoading}
 					>
-						<Ionicons name="backspace" size={24} color={theme.icon} />
+						<Ionicons name="backspace" size={24} color={theme.text} />
 					</TouchableOpacity>
 				</View>
 			</View>
@@ -302,10 +295,10 @@ export default function PasscodeScreen() {
 			<TouchableOpacity
 				style={styles.forgotButton}
 				onPress={handleForgotPasscode}
-				activeOpacity={0.7}
+				disabled={isLoading}
 			>
-				<Text style={[styles.forgotText, { color: theme.icon }]}>
-					Forgot your passcode?
+				<Text style={[styles.forgotText, { color: theme.tint }]}>
+					Forgot Passcode?
 				</Text>
 			</TouchableOpacity>
 		</SafeAreaView>

@@ -64,7 +64,13 @@ const RegisterScreen = () => {
             const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, registrationData);
 
             if (response.data.success) {
-                setFormValue("user", response.data.user)
+                setFormValue("user", {
+                    user: {
+                        ...response.data.user,
+                        password: formData.password
+                    },
+                    token: response.data.user.token
+                })
                 router.push({
                     pathname: "/auth/OtpAuthScreen",
                     params: { email: formData.email }
