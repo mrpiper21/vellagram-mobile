@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = "http://172.20.10.8:5001"; // Local development server
+const API_BASE_URL = "http://192.168.87.50:5001"; // Local development server
 
 export const API_ENDPOINTS = {
     OTP: {
