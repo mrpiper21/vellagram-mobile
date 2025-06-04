@@ -45,6 +45,7 @@ function RootLayoutContent() {
 				<Stack.Screen name="+not-found" />
 				<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
 				<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
+				<Stack.Screen name="contacts" options={{ headerShown: false }} />
 			</Stack>
 			<StatusBar style="auto" />
 			<AmountFilterSheet
