@@ -1,243 +1,261 @@
 import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-	Alert,
-	FlatList,
-	Modal,
-	StyleSheet,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View
-} from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-// Simple dummy data for groups - WhatsApp style
-const groups = [
-	{
-		id: "1",
-		name: "Family Susu Circle",
-		lastMessage: "Payment reminder: Next contribution due tomorrow!",
-		time: "2 min ago",
-		unreadCount: 3,
-		avatar: "F"
-	},
-	{
-		id: "2",
-		name: "Office Workers Susu",
-		lastMessage: "Welcome Sarah! Please introduce yourself",
-		time: "1 hour ago",
-		unreadCount: 0,
-		avatar: "O"
-	},
-	{
-		id: "3",
-		name: "Friends Savings Group",
-		lastMessage: "Great job everyone on this month's savings!",
-		time: "3 hours ago",
-		unreadCount: 1,
-		avatar: "F"
-	},
-	{
-		id: "4",
-		name: "Community Development",
-		lastMessage: "Meeting scheduled for next Friday",
-		time: "1 day ago",
-		unreadCount: 0,
-		avatar: "C"
-	},
-	{
-		id: "5",
-		name: "School Parents Group",
-		lastMessage: "Monthly contribution complete ✅",
-		time: "2 days ago",
-		unreadCount: 0,
-		avatar: "S"
-	}
-];
+// Dummy chat groups for demonstration
+const dummyChats = {
+	chats: [
+		{
+			id: "1",
+			name: "Family Susu Circle",
+			lastMessage: "Payment reminder: Next contribution due tomorrow!",
+			time: "2 min ago",
+			type: "group",
+			unreadCount: 3,
+			avatar: "F",
+			members: 12,
+			nextPayment: "GHS 200",
+			dueDate: "10 June 2024"
+		},
+		{
+			id: "2",
+			name: "Office Workers Susu",
+			lastMessage: "Welcome Sarah! Please introduce yourself",
+			time: "1 hour ago",
+			type: "direct",
+			unreadCount: 0,
+			avatar: "O",
+			members: 8,
+			nextPayment: "GHS 150",
+			dueDate: "15 June 2024"
+		},
+		{
+			id: "3",
+			name: "Friends Savings Group",
+			lastMessage: "Great job everyone on this month's savings!",
+			time: "3 hours ago",
+			type: "group",
+			unreadCount: 1,
+			avatar: "F",
+			members: 6,
+			nextPayment: "GHS 100",
+			dueDate: "20 June 2024"
+		},
+	],
+	savings: [
+		{
+			id: "1",
+			name: "Family Susu Circle",
+			lastMessage: "Payment reminder: Next contribution due tomorrow!",
+			time: "2 min ago",
+			type: "group",
+			unreadCount: 2,
+			avatar: "F",
+			members: 12,
+			nextPayment: "GHS 200",
+			dueDate: "10 June 2024"
+		},
+		{
+			id: "3",
+			name: "Friends Savings Group",
+			lastMessage: "Great job everyone on this month's savings!",
+			time: "3 hours ago",
+			type: "group",
+			unreadCount: 0,
+			avatar: "F",
+			members: 6,
+			nextPayment: "GHS 100",
+			dueDate: "20 June 2024"
+		},
+	]
+};
 
 export default function ChatTab() {
 	const { theme } = useTheme();
 	const colorScheme = theme.isDark ? "dark" : "light";
 	const appColors = Colors[colorScheme];
-	const [showCreateGroup, setShowCreateGroup] = useState(false);
-	const [newGroupName, setNewGroupName] = useState("");
-	const [searchQuery, setSearchQuery] = useState("");
 
-	// Filter groups based on search query
-	const filteredGroups = groups.filter(group =>
-		group.name.toLowerCase().includes(searchQuery.toLowerCase())
-	);
+	const [activeTab, setActiveTab] = useState<'chats' | 'savings'>('chats');
+	const [chats, setChats] = useState(dummyChats);
 
-	const handleGroupPress = (group: typeof groups[0]) => {
-		router.push(`/conversation/[id]`,);
-	};
+	const renderChatItem = ({ item }: { item: typeof dummyChats.chats[0] }) => {
+		const obg = {
+			chats: (
+				<TouchableOpacity
+					style={[
+						styles.chatItem,
+						{ backgroundColor: appColors.background }
+					]}
+					onPress={() => router.push(`/conversation/${item.id}`)}
+					activeOpacity={0.7}
+				>
+					<View style={[styles.avatar, { backgroundColor: appColors.tint }]}>
+						<Text style={styles.avatarText}>{item.avatar}</Text>
+					</View>
 
-	const handleCreateGroup = () => {
-		if (newGroupName.trim()) {
-			Alert.alert("Success", `Group "${newGroupName}" would be created`);
-			setNewGroupName("");
-			setShowCreateGroup(false);
-		} else {
-			Alert.alert("Error", "Please enter a group name");
-		}
-	};
-
-	const renderGroup = ({ item }: { item: typeof groups[0] }) => (
-		<TouchableOpacity
-			style={[
-				styles.groupItem,
-				{ backgroundColor: appColors.background }
-			]}
-			onPress={() => handleGroupPress(item)}
-			activeOpacity={0.7}
-		>
-			<View style={[styles.groupAvatar, { backgroundColor: appColors.tint }]}>
-				<Text style={styles.avatarText}>{item.avatar}</Text>
-			</View>
-
-			<View style={styles.groupContent}>
-				<View style={styles.groupHeader}>
-					<Text style={[
-						styles.groupName,
-						{ color: appColors.text }
-					]}>
-						{item.name}
-					</Text>
-					<Text style={[
-						styles.timeStamp,
-						{ color: appColors.text }
-					]}>
-						{item.time}
-					</Text>
-				</View>
-
-				<View style={styles.messageRow}>
-					<Text style={[
-						styles.lastMessage,
-						{ color: appColors.text }
-					]} numberOfLines={1}>
-						{item.lastMessage}
-					</Text>
-
-					{item.unreadCount > 0 && (
-						<View style={styles.unreadBadge}>
-							<Text style={styles.unreadCount}>{item.unreadCount}</Text>
+					<View style={styles.chatContent}>
+						<View style={styles.chatHeader}>
+							<View style={styles.nameContainer}>
+								<Text style={[styles.chatName, { color: appColors.text }]}>
+									{item.name}
+								</Text>
+								<View style={styles.memberCount}>
+									<Text style={[styles.memberText, { color: appColors.icon }]}>
+										{item.members}
+									</Text>
+								</View>
+							</View>
+							<Text style={[styles.timeStamp, { color: appColors.text }]}>
+								{item.time}
+							</Text>
 						</View>
-					)}
-				</View>
-			</View>
-		</TouchableOpacity>
-	);
 
-	const renderEmptyState = () => (
-		<View style={styles.emptyState}>
-			<Ionicons
-				name="chatbubbles-outline"
-				size={64}
-				color={appColors.text}
-			/>
-			<Text style={[
-				styles.emptyStateText,
-				{ color: appColors.text }
-			]}>
-				{searchQuery ? 'No groups found' : 'No groups yet'}
-			</Text>
-			{!searchQuery && (
-				<Text style={[
-					styles.emptyStateSubtext,
-					{ color: appColors.text }
-				]}>
-					Create your first Susu group to start saving together
-				</Text>
-			)}
-		</View>
-	);
+						<View style={styles.messageRow}>
+							<Text style={[styles.lastMessage, { color: appColors.text }]} numberOfLines={1}>
+								{item.lastMessage}
+							</Text>
+
+							{item.unreadCount > 0 && (
+								<View style={styles.unreadBadge}>
+									<Text style={styles.unreadCount}>{item.unreadCount}</Text>
+								</View>
+							)}
+						</View>
+					</View>
+				</TouchableOpacity>
+			),
+			savings: (
+				<TouchableOpacity
+					style={[
+						styles.chatItem,
+						{ backgroundColor: appColors.background }
+					]}
+					onPress={() => router.push(`/conversation/${item.id}`)}
+					activeOpacity={0.7}
+				>
+					<View style={styles.avatarContainer}>
+						<View style={[styles.avatar, { backgroundColor: appColors.tint }]} />
+						<View style={[styles.avatar, {
+							backgroundColor: appColors.tabIconDefault,
+							position: "absolute",
+							borderWidth: 2,
+							borderColor: 'white',
+							left: 7,
+							top: 0,
+							zIndex: 1
+						}]} />
+						<View style={[styles.memberCountBadge, { backgroundColor: appColors.tint }]}>
+							<Text style={styles.memberCountText}>2+</Text>
+						</View>
+					</View>
+
+					<View style={styles.chatContent}>
+						<View style={styles.chatHeader}>
+							<View style={styles.nameContainer}>
+								<Text style={[styles.chatName, { color: appColors.text }]}>
+									{item.name}
+								</Text>
+								<View style={styles.memberCount}>
+									<Ionicons name="people" size={14} color={appColors.icon} />
+									<Text style={[styles.memberText, { color: appColors.icon }]}>
+										{item.members}
+									</Text>
+								</View>
+							</View>
+							<Text style={[styles.timeStamp, { color: appColors.text }]}>
+								{item.time}
+							</Text>
+						</View>
+
+						<View style={styles.messageRow}>
+							<View style={styles.paymentInfo}>
+								<View style={styles.paymentRow}>
+									<Text style={[styles.paymentLabel, { color: appColors.icon }]}>
+										Next payment:
+									</Text>
+									<View style={[styles.amountBadge, { backgroundColor: appColors.tint }]}>
+										<Text style={styles.amountText}>GHS 200</Text>
+									</View>
+								</View>
+								<View style={styles.dueDateRow}>
+									<Text style={[styles.dueDateLabel, { color: appColors.icon }]}>
+										Due:
+									</Text>
+									<Text style={[styles.dueDateText, { color: appColors.text }]}>
+										10 june, 2025
+									</Text>
+								</View>
+							</View>
+
+							{item.unreadCount > 0 && (
+								<View style={styles.unreadBadge}>
+									<Text style={styles.unreadCount}>{item.unreadCount}</Text>
+								</View>
+							)}
+						</View>
+					</View>
+				</TouchableOpacity>
+			)
+		};
+
+		return obg[activeTab];
+	};
 
 	return (
-		<View style={[
-			styles.container,
-			{ backgroundColor: appColors.background }
-		]}>
+		<View style={[styles.container, { backgroundColor: appColors.background }]}>
 			{/* Header */}
-			<View style={styles.header}>
-				<TouchableOpacity>
+			<View style={[styles.header, { backgroundColor: appColors.card }]}>
+				<Text style={[styles.headerTitle, { color: appColors.text }]}>
+					Messages
+				</Text>
+				<TouchableOpacity style={styles.createButton}>
+					<Ionicons name="add-circle-outline" size={24} color={appColors.tint} />
+				</TouchableOpacity>
+			</View>
+
+			{/* Tabs */}
+			<View style={[styles.tabContainer, { backgroundColor: appColors.card }]}>
+				<TouchableOpacity
+					style={[
+						styles.tab,
+						activeTab === 'chats' && { borderBottomColor: appColors.tint }
+					]}
+					onPress={() => setActiveTab('chats')}
+				>
 					<Text style={[
-					styles.headerTitle,
-					{ color: appColors.text }
-				]}>
-					Chats
+						styles.tabText,
+						{ color: activeTab === 'chats' ? appColors.tint : appColors.text }
+					]}>
+						Chats
+					</Text>
+				</TouchableOpacity>
+				<TouchableOpacity
+					style={[
+						styles.tab,
+						activeTab === 'savings' && { borderBottomColor: appColors.tint }
+					]}
+					onPress={() => setActiveTab('savings')}
+				>
+					<Text style={[
+						styles.tabText,
+						{ color: activeTab === 'savings' ? appColors.tint : appColors.text }
+					]}>
+						Savings
 					</Text>
 				</TouchableOpacity>
 			</View>
 
-			{/* Groups List */}
+			{/* Chat List */}
 			<FlatList
-				data={filteredGroups}
-				keyExtractor={(item) => item.id}
-				renderItem={renderGroup}
-				contentContainerStyle={[
-					styles.list,
-					filteredGroups.length === 0 && styles.emptyList
-				]}
+				data={chats[activeTab]}
+				keyExtractor={item => item.id}
+				renderItem={renderChatItem}
+				contentContainerStyle={styles.chatList}
 				showsVerticalScrollIndicator={false}
-				ListEmptyComponent={renderEmptyState}
 			/>
-
-			{/* Create Group Modal */}
-			<Modal
-				visible={showCreateGroup}
-				transparent={true}
-				animationType="slide"
-				onRequestClose={() => setShowCreateGroup(false)}
-			>
-				<View style={styles.modalOverlay}>
-					<View style={[
-						styles.modalContent,
-						{ backgroundColor: appColors.background }
-					]}>
-						<Text style={[
-							styles.modalTitle,
-							{ color: appColors.text }
-						]}>
-							Create New Susu Group
-						</Text>
-
-						<TextInput
-							style={[
-								styles.modalInput,
-								{
-									backgroundColor: appColors.background,
-									color: appColors.text
-								}
-							]}
-							placeholder="Enter group name..."
-							placeholderTextColor={appColors.text}
-							value={newGroupName}
-							onChangeText={setNewGroupName}
-							autoFocus={true}
-						/>
-
-						<View style={styles.modalButtons}>
-							<TouchableOpacity
-								style={[styles.modalButton, styles.cancelButton]}
-								onPress={() => setShowCreateGroup(false)}
-							>
-								<Text style={styles.cancelButtonText}>Cancel</Text>
-							</TouchableOpacity>
-
-							<TouchableOpacity
-								style={[styles.modalButton, styles.createGroupButton]}
-								onPress={handleCreateGroup}
-							>
-								<Text style={styles.createButtonText}>Create</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
-				</View>
-			</Modal>
 		</View>
 	);
 }
@@ -247,180 +265,174 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	header: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		paddingHorizontal: 16,
-		paddingTop: 30,
-		paddingBottom: 12,
-		borderBottomWidth: .5
-	},
-	headerTitle: {
-		fontSize: 28,
-		fontWeight: 'bold',
-	},
-	createButton: {
-		backgroundColor: '#4CAF50',
-		borderRadius: 20,
-		width: 40,
-		height: 40,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	searchContainer: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		marginHorizontal: 16,
-		marginBottom: 16,
-		paddingHorizontal: 12,
-		paddingVertical: 10,
-		borderRadius: 12,
-		elevation: 1,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 1 },
-		shadowOpacity: 0.1,
-		shadowRadius: 2,
-	},
-	searchInput: {
-		flex: 1,
-		marginLeft: 8,
-		fontSize: 16,
-	},
-	list: {
-		paddingBottom: 32,
-	},
-	emptyList: {
-		flexGrow: 1,
-		justifyContent: 'center',
-	},
-	groupItem: {
-		flexDirection: 'row',
-		alignItems: 'center',
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
 		paddingHorizontal: 16,
 		paddingVertical: 12,
 		borderBottomWidth: 0.5,
-		borderBottomColor: 'rgba(0,0,0,0.1)',
+		borderBottomColor: "rgba(150, 150, 150, 0.2)",
+		paddingTop: 35
 	},
-	groupAvatar: {
-		width: 50,
-		height: 50,
-		borderRadius: 25,
-		backgroundColor: '#25D366',
-		justifyContent: 'center',
-		alignItems: 'center',
+	headerTitle: {
+		fontSize: 20,
+		fontWeight: "600",
+	},
+	createButton: {
+		padding: 4,
+	},
+	tabContainer: {
+		flexDirection: "row",
+		borderBottomWidth: 0.5,
+		borderBottomColor: "rgba(150, 150, 150, 0.2)",
+	},
+	tab: {
+		flex: 1,
+		paddingVertical: 12,
+		alignItems: "center",
+		borderBottomWidth: 2,
+		borderBottomColor: "transparent",
+	},
+	tabText: {
+		fontSize: 16,
+		fontWeight: "500",
+	},
+	chatList: {
+	// padding: 12,
+	},
+	chatItem: {
+		flexDirection: "row",
+		paddingVertical: 12,
+		paddingHorizontal: 16,
+		borderRadius: 0,
+		marginBottom: 0,
+		borderBottomWidth: 0.5,
+		borderBottomColor: "rgba(150, 150, 150, 0.2)",
+	},
+	avatarContainer: {
+		width: 48,
+		height: 48,
 		marginRight: 12,
+		position: 'relative',
+	},
+	avatar: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		justifyContent: "center",
+		alignItems: "center",
 	},
 	avatarText: {
-		color: '#ffffff',
-		fontSize: 18,
-		fontWeight: '600',
+		color: "#fff",
+		fontWeight: "bold",
+		fontSize: 20,
 	},
-	groupContent: {
+	chatContent: {
 		flex: 1,
+		justifyContent: "center",
 	},
-	groupHeader: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
+	chatHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
 		marginBottom: 4,
 	},
-	groupName: {
-		fontSize: 16,
-		fontWeight: '600',
+	nameContainer: {
+		flexDirection: "row",
+		alignItems: "center",
 		flex: 1,
+	},
+	chatName: {
+		fontSize: 16,
+		fontWeight: "600",
+		marginRight: 8,
+	},
+	memberCount: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	memberText: {
+		fontSize: 12,
+		marginLeft: 2,
 	},
 	timeStamp: {
 		fontSize: 12,
-		marginLeft: 8,
 	},
 	messageRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
 	},
 	lastMessage: {
 		fontSize: 14,
 		flex: 1,
 		marginRight: 8,
 	},
-	unreadBadge: {
-		backgroundColor: '#25D366',
-		borderRadius: 10,
-		minWidth: 20,
-		height: 20,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	unreadCount: {
-		color: '#ffffff',
-		fontSize: 12,
-		fontWeight: 'bold',
-	},
-	emptyState: {
-		alignItems: 'center',
-		paddingVertical: 64,
-	},
-	emptyStateText: {
-		fontSize: 18,
-		fontWeight: '600',
-		marginTop: 16,
-		marginBottom: 8,
-	},
-	emptyStateSubtext: {
-		fontSize: 14,
-		textAlign: 'center',
-		lineHeight: 20,
-		paddingHorizontal: 32,
-	},
-	modalOverlay: {
+	paymentInfo: {
 		flex: 1,
-		backgroundColor: 'rgba(0,0,0,0.5)',
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	modalContent: {
-		width: '85%',
-		borderRadius: 16,
-		padding: 24,
-		elevation: 5,
-	},
-	modalTitle: {
-		fontSize: 20,
-		fontWeight: 'bold',
-		marginBottom: 20,
-		textAlign: 'center',
-	},
-	modalInput: {
-		borderRadius: 12,
-		padding: 16,
-		fontSize: 16,
-		marginBottom: 24,
-		elevation: 1,
-	},
-	modalButtons: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-	},
-	modalButton: {
-		flex: 1,
-		paddingVertical: 12,
-		borderRadius: 12,
-		alignItems: 'center',
-	},
-	cancelButton: {
-		backgroundColor: '#f5f5f5',
 		marginRight: 8,
 	},
-	createGroupButton: {
-		backgroundColor: '#4CAF50',
-		marginLeft: 8,
+	paymentRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginBottom: 4,
 	},
-	cancelButtonText: {
-		color: '#666666',
+	paymentLabel: {
+		fontSize: 14,
+		marginRight: 8,
+	},
+	amountBadge: {
+		paddingHorizontal: 8,
+		paddingVertical: 4,
+		borderRadius: 12,
+	},
+	amountText: {
+		color: '#fff',
+		fontSize: 14,
 		fontWeight: '600',
 	},
-	createButtonText: {
-		color: '#ffffff',
+	dueDateRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+	},
+	dueDateLabel: {
+		fontSize: 12,
+		marginRight: 4,
+	},
+	dueDateText: {
+		fontSize: 12,
+		fontWeight: '500',
+	},
+	unreadBadge: {
+		minWidth: 20,
+		height: 20,
+		borderRadius: 10,
+		backgroundColor: "#25D366",
+		justifyContent: "center",
+		alignItems: "center",
+		paddingHorizontal: 6,
+	},
+	unreadCount: {
+		color: "#fff",
+		fontSize: 12,
+		fontWeight: "600",
+	},
+	memberCountBadge: {
+		position: 'absolute',
+		bottom: 0,
+		right: 0,
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		justifyContent: 'center',
+		alignItems: 'center',
+		borderWidth: 2,
+		borderColor: 'white',
+		zIndex: 3,
+	},
+	memberCountText: {
+		color: '#fff',
+		fontSize: 10,
 		fontWeight: '600',
 	},
-});
+}); 

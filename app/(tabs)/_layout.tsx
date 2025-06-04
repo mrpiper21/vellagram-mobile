@@ -37,14 +37,23 @@ export default function TabLayout() {
           },
         }),
       }}
-      initialRouteName="chat"
+      initialRouteName="index"
     >
       <Tabs.Screen
-        name="chat"
+        name="index"
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="groups/index"
+        options={{
+          title: 'Saving Groups',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
@@ -54,6 +63,15 @@ export default function TabLayout() {
           title: 'Wallet',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="account/index"
+        options={{
+          title: 'Account',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />

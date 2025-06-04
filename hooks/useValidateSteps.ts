@@ -4,20 +4,27 @@ import { Alert } from "react-native";
 export const useValidateSteps = ({currentStep, formData, walletChoice}: {currentStep: number, formData: IUserRegistrationData, walletChoice: string | null}) => {
     switch (currentStep) {
         case 1:
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!formData.firstName.trim() || !formData.lastName.trim()) {
                 Alert.alert('Error', 'Please enter your first and last name');
                 return false;
             }
-            if (!emailRegex.test(formData.email)) {
-                Alert.alert('Error', 'Please enter a valid email address');
+            if (!formData.phone.trim()) {
+                Alert.alert('Error', 'Please enter your phone number');
                 return false;
             }
             return true;
         case 2:
-            const phoneRegex = /^\+?[\d\s-()]+$/;
-            if (!phoneRegex.test(formData.phone)) {
-                Alert.alert('Error', 'Please enter a valid phone number');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                Alert.alert('Error', 'Please enter a valid email address');
+                return false;
+            }
+            if (!formData.password || formData.password.length < 8) {
+                Alert.alert('Error', 'Password must be at least 8 characters long');
+                return false;
+            }
+            if (formData.password !== formData.confirmPassword) {
+                Alert.alert('Error', 'Passwords do not match');
                 return false;
             }
             return true;

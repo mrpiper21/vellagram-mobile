@@ -7,7 +7,7 @@ export default function Index() {
     isAuthenticated: state.isAuthenticated
   }));
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Redirect href="/auth/EmailAuthScreen" />;
   }
 

@@ -4,14 +4,16 @@ export interface IUser {
     email: string;
     phone: string;
     profilePicture?: string | null; 
+    pin: string;
     walletAddress?: `0x${string}` | null;
+    password?: string;
     groups: Group[];
+    token?: string
 }
 
 export interface IUserRegistrationData extends IUser  {
     password: string;
     confirmPassword: string;
-    pin: string;
     confirmPin: string;
   }
 
