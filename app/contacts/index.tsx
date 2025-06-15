@@ -1,121 +1,111 @@
+import ContactSkeleton from "@/components/skeletons/ContactSkeleton";
 import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
+import { checkPhoneNumberRegisteration } from "@/services/contact.service";
 import { Ionicons } from "@expo/vector-icons";
-import * as Contacts from 'expo-contacts';
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import Animated, {
-    Easing,
-    useAnimatedProps,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withTiming
-} from 'react-native-reanimated';
-import Svg, { Circle, G, Path } from 'react-native-svg';
+import * as Contacts from "expo-contacts";
+import { router } from "expo-router";
+import * as SMS from 'expo-sms';
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+interface Contact {
+    id: string;
+    name?: string;
+    phoneNumbers?: Contacts.PhoneNumber[];
+    imageAvailable?: boolean;
+    image?: Contacts.Image;
+    isRegistered?: boolean;
+    userData?: any;
+}
 
-type Contact = Contacts.Contact;
-
-const EmptyState = () => {
-    const { theme } = useTheme();
-    const colorScheme = theme.isDark ? 'dark' : 'light';
-    const appColors = Colors[colorScheme];
-
-    const scale = useSharedValue(1);
-    const opacity = useSharedValue(0);
-    const strokeDashoffset = useSharedValue(1000);
-
-    useEffect(() => {
-        opacity.value = withTiming(1, { duration: 1000 });
-        scale.value = withRepeat(
-            withTiming(1.05, {
-                duration: 2000,
-                easing: Easing.inOut(Easing.ease)
-            }),
-            -1,
-            true
-        );
-        strokeDashoffset.value = withDelay(
-            500,
-            withTiming(0, {
-                duration: 2000,
-                easing: Easing.inOut(Easing.ease)
-            })
-        );
-    }, []);
-
-    const animatedProps = useAnimatedProps(() => ({
-        strokeDashoffset: strokeDashoffset.value,
-    }));
+// Memoized Contact Item Component
+const ContactItem = React.memo(({
+    contact,
+    appColors,
+    isVerifying,
+    onInvite,
+    onChat
+}: {
+    contact: Contact;
+    appColors: any;
+    isVerifying: boolean;
+    onInvite: (contact: Contact) => void;
+    onChat: (userId: string) => void;
+}) => {
+    const phoneNumber = contact.phoneNumbers?.[0]?.number;
 
     return (
-        <View style={styles.emptyContainer}>
-            <Animated.View style={[
-                styles.illustrationContainer,
-                {
-                    opacity,
-                    transform: [{ scale }]
-                }
-            ]}>
-                <Svg width={200} height={200} viewBox="0 0 200 200">
-                    <G>
-                        {/* Main circle */}
-                        <AnimatedCircle
-                            cx={100}
-                            cy={100}
-                            r={80}
-                            stroke={appColors.text}
-                            strokeWidth={2}
-                            fill="none"
-                            strokeDasharray={1000}
-                            animatedProps={animatedProps}
-                        />
-
-                        {/* Contact icon */}
-                        <Path
-                            d="M100 60C83.4315 60 70 73.4315 70 90C70 106.569 83.4315 120 100 120C116.569 120 130 106.569 130 90C130 73.4315 116.569 60 100 60Z"
-                            stroke={appColors.text}
-                            strokeWidth={2}
-                            fill="none"
-                        />
-                        <Path
-                            d="M60 140C60 117.909 77.9086 100 100 100C122.091 100 140 117.909 140 140"
-                            stroke={appColors.text}
-                            strokeWidth={2}
-                            fill="none"
-                        />
-
-                        {/* Plus icon */}
-                        <Circle
-                            cx={150}
-                            cy={150}
-                            r={15}
-                            fill={appColors.tint}
-                            opacity={0.8}
-                        />
-                        <Path
-                            d="M150 142V158M142 150H158"
-                            stroke="white"
-                            strokeWidth={2}
-                            strokeLinecap="round"
-                        />
-                    </G>
-                </Svg>
-            </Animated.View>
-            <Text style={[styles.emptyTitle, { color: appColors.text }]}>
-                No Contacts Found
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: appColors.text, opacity: 0.7 }]}>
-                Your contacts will appear here
-            </Text>
+        <View style={[styles.contactItem, { backgroundColor: appColors.card }]}>
+            <View style={styles.contactInfo}>
+                {contact.imageAvailable && contact.image ? (
+                    <Image
+                        source={{ uri: contact.image.uri }}
+                        style={styles.avatar}
+                        defaultSource={require('@/assets/images/favicon.png')}
+                    />
+                ) : (
+                    <View style={[styles.avatar, { backgroundColor: appColors.tint }]}>
+                        <Text style={styles.avatarText}>
+                            {contact.name?.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
+                )}
+                <View style={styles.contactDetails}>
+                    <Text style={[styles.contactName, { color: appColors.text }]}>
+                        {contact.name}
+                    </Text>
+                    {phoneNumber && (
+                        <Text style={[styles.phoneNumber, { color: appColors.text, opacity: 0.7 }]}>
+                            {phoneNumber}
+                        </Text>
+                    )}
+                </View>
+            </View>
+            {phoneNumber && (
+                <TouchableOpacity
+                    style={[
+                        styles.actionButton,
+                        { 
+                            backgroundColor: contact.isRegistered ? appColors.tint : appColors.card,
+                            borderColor: appColors.border
+                        }
+                    ]}
+                    onPress={() => {
+                        if (contact.isRegistered) {
+                            onChat(contact.userData.id);
+                        } else {
+                            onInvite(contact);
+                        }
+                    }}
+                    disabled={isVerifying}
+                >
+                    {isVerifying ? (
+                        <ActivityIndicator size="small" color={appColors.text} />
+                    ) : (
+                        <Text style={[
+                            styles.buttonText,
+                            { color: contact.isRegistered ? 'white' : appColors.text }
+                            ]}>
+                                {contact.isRegistered ? 'Chat' : 'Invite'}
+                            </Text>
+                    )}
+                </TouchableOpacity>
+            )}
         </View>
     );
-};
+});
 
-const ContactScreen = () => {
+export default function ContactsScreen() {
     const { theme } = useTheme();
     const colorScheme = theme.isDark ? 'dark' : 'light';
     const appColors = Colors[colorScheme];
@@ -125,6 +115,56 @@ const ContactScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [verifyingContacts, setVerifyingContacts] = useState<Set<string>>(new Set());
+
+    const verifyContact = useCallback(async (contact: Contact) => {
+        if (!contact.phoneNumbers?.[0]?.number) return;
+
+        const phoneNumber = contact.phoneNumbers[0].number.replace(/\D/g, '');
+        setVerifyingContacts(prev => new Set(prev).add(contact.id));
+
+        try {
+            const result = await checkPhoneNumberRegisteration(phoneNumber);
+            setContacts(prev => prev.map(c =>
+                c.id === contact.id
+                    ? { ...c, isRegistered: result.isResgistered, userData: result.data }
+                    : c
+            ));
+        } catch (error) {
+            console.error('Error verifying contact:', error);
+        } finally {
+            setVerifyingContacts(prev => {
+                const next = new Set(prev);
+                next.delete(contact.id);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleInvite = useCallback(async (contact: Contact) => {
+        if (!contact.phoneNumbers?.[0]?.number) return;
+
+        const phoneNumber = contact.phoneNumbers[0].number.replace(/\D/g, '');
+        const message = `Hey! Join me on Vellagram - the new way to connect and share moments. Download the app now!`;
+
+        try {
+            const isAvailable = await SMS.isAvailableAsync();
+            if (isAvailable) {
+                await SMS.sendSMSAsync(
+                    [phoneNumber],
+                    message
+                );
+            } else {
+                console.log('SMS is not available on this device');
+            }
+        } catch (error) {
+            console.error('Error sending SMS:', error);
+        }
+    }, []);
+
+    const handleChat = useCallback((userId: string) => {
+        router.push(`/conversation/${userId}`);
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -138,8 +178,15 @@ const ContactScreen = () => {
                             Contacts.Fields.Image,
                         ],
                     });
-                    setContacts(data);
-                    setFilteredContacts(data);
+                    const formattedContacts: Contact[] = data.map(contact => ({
+                        id: contact.id || Math.random().toString(),
+                        name: contact.name,
+                        phoneNumbers: contact.phoneNumbers,
+                        imageAvailable: contact.imageAvailable,
+                        image: contact.image,
+                    }));
+                    setContacts(formattedContacts);
+                    setFilteredContacts(formattedContacts);
                 } else {
                     setError('Permission to access contacts was denied');
                 }
@@ -162,47 +209,57 @@ const ContactScreen = () => {
         }
     }, [searchQuery, contacts]);
 
-    const renderContactItem = ({ item }: { item: Contact }) => (
-        <TouchableOpacity
-            style={[styles.contactItem, { backgroundColor: appColors.card }]}
-            onPress={() => {/* Handle contact selection */ }}
-        >
-            <View style={styles.contactAvatar}>
-                {item.imageAvailable && item.image ? (
-                    <Image source={{ uri: item.image.uri }} style={styles.avatarImage} />
-                ) : (
-                    <View style={[styles.avatarPlaceholder, { backgroundColor: appColors.tint }]}>
-                        <Text style={styles.avatarText}>
-                            {item.name?.charAt(0).toUpperCase() || '?'}
-                        </Text>
-                    </View>
-                )}
-            </View>
-            <View style={styles.contactInfo}>
-                <Text style={[styles.contactName, { color: appColors.text }]}>
-                    {item.name || 'Unnamed Contact'}
-                </Text>
-                {item.phoneNumbers && item.phoneNumbers.length > 0 && (
-                    <Text style={[styles.contactPhone, { color: appColors.text }]}>
-                        {item.phoneNumbers[0].number}
-                    </Text>
-                )}
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={appColors.icon} />
-        </TouchableOpacity>
-    );
+    const handleEndReached = useCallback(() => {
+        filteredContacts.forEach(contact => {
+            if (!contact.isRegistered && !verifyingContacts.has(contact.id)) {
+                verifyContact(contact);
+            }
+        });
+    }, [filteredContacts, verifyingContacts, verifyContact]);
+
+    const renderItem = useCallback(({ item }: { item: Contact }) => (
+        <ContactItem
+            contact={item}
+            appColors={appColors}
+            isVerifying={verifyingContacts.has(item.id)}
+            onInvite={handleInvite}
+            onChat={handleChat}
+        />
+    ), [appColors, verifyingContacts, handleInvite, handleChat]);
+
+    const keyExtractor = useCallback((item: Contact) => item.id, []);
+
+    const getItemLayout = useCallback((data: ArrayLike<Contact> | null | undefined, index: number) => ({
+        length: 82,
+        offset: 82 * index,
+        index,
+    }), []);
 
     if (loading) {
         return (
             <View style={[styles.container, { backgroundColor: appColors.background }]}>
-                <ActivityIndicator size="large" color={appColors.tint} />
+                <View style={[styles.searchContainer, { backgroundColor: appColors.card }]}>
+                    <Ionicons name="search" size={20} color={appColors.icon} style={styles.searchIcon} />
+                    <TextInput
+                        style={[styles.searchInput, { color: appColors.text }]}
+                        placeholder="Search contacts"
+                        placeholderTextColor={appColors.icon}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+                <FlatList
+                    data={[1, 2, 3, 4, 5]}
+                    renderItem={() => <ContactSkeleton />}
+                    keyExtractor={(item) => item.toString()}
+                />
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={[styles.container, { backgroundColor: appColors.background }]}>
+            <View style={[styles.container, styles.centerContent, { backgroundColor: appColors.background }]}>
                 <Text style={[styles.errorText, { color: appColors.text }]}>{error}</Text>
             </View>
         );
@@ -214,121 +271,106 @@ const ContactScreen = () => {
                 <Ionicons name="search" size={20} color={appColors.icon} style={styles.searchIcon} />
                 <TextInput
                     style={[styles.searchInput, { color: appColors.text }]}
-                    placeholder="Search contacts..."
-                    placeholderTextColor={appColors.text}
+                    placeholder="Search contacts"
+                    placeholderTextColor={appColors.icon}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                 />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Ionicons name="close-circle" size={20} color={appColors.icon} />
-                    </TouchableOpacity>
-                )}
             </View>
-
-            {filteredContacts.length === 0 ? (
-                <EmptyState />
-            ) : (
-                <FlatList
-                    data={filteredContacts}
-                    renderItem={renderContactItem}
-                    keyExtractor={(item) => item.id || Math.random().toString()}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                />
-            )}
+            <FlatList
+                data={filteredContacts}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                onEndReached={handleEndReached}
+                onEndReachedThreshold={0.5}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                getItemLayout={getItemLayout}
+                removeClippedSubviews={true}
+                updateCellsBatchingPeriod={50}
+            />
         </View>
     );
-};
-
-export default ContactScreen;
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 8,
-        margin: 12,
-        borderRadius: 8,
+        padding: 12,
+        margin: 16,
+        borderRadius: 12,
+        borderWidth: 0.5,
     },
     searchIcon: {
         marginRight: 8,
     },
     searchInput: {
         flex: 1,
-        fontSize: 15,
+        fontSize: 16,
         padding: 0,
-    },
-    listContainer: {
-        padding: 12,
     },
     contactItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
-        borderRadius: 0,
+        justifyContent: 'space-between',
+        padding: 16,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: 'rgba(0,0,0,0.1)',
+        height: 82,
     },
-    contactAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        overflow: 'hidden',
+    contactInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    avatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         marginRight: 12,
-    },
-    avatarImage: {
-        width: '100%',
-        height: '100%',
-    },
-    avatarPlaceholder: {
-        width: '100%',
-        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         color: 'white',
-        fontSize: 16,
+        fontSize: 20,
         fontWeight: '600',
     },
-    contactInfo: {
+    contactDetails: {
         flex: 1,
     },
     contactName: {
-        fontSize: 15,
-        fontWeight: '500',
-        marginBottom: 2,
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 4,
     },
-    contactPhone: {
-        fontSize: 13,
-        opacity: 0.7,
+    phoneNumber: {
+        fontSize: 14,
+    },
+    actionButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: StyleSheet.hairlineWidth,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    buttonText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
     errorText: {
+        fontSize: 16,
         textAlign: 'center',
-        fontSize: 15,
-        margin: 16,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-    },
-    illustrationContainer: {
-        marginBottom: 24,
-    },
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    emptySubtitle: {
-        fontSize: 15,
-        textAlign: 'center',
+        marginHorizontal: 20,
     },
 });
