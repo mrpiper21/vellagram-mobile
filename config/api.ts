@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = "http://192.168.87.50:5001"; // Local development server
+const API_BASE_URL = "http://172.20.10.8:5001"; // Local development server
+const prisma = 'http://172.20.10.8:3000'
 
 export const API_ENDPOINTS = {
     OTP: {
@@ -8,6 +9,7 @@ export const API_ENDPOINTS = {
     },
     AUTH: {
         LOGIN: `${API_BASE_URL}/api/users/login`,
-        REGISTER: `${API_BASE_URL}/api/users/register`
-    }
+        REGISTER: `${API_BASE_URL}/api/users/register`,
+        ISREGISTERED: `${prisma}/api/users/check-phone`
+    },
 };

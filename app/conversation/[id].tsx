@@ -220,17 +220,24 @@ export default function ConversationDetail() {
                             maxLength={500}
                             textAlignVertical="center"
                         />
-                        <TouchableOpacity
-                            onPress={handleSend}
-                            style={[
-                                styles.sendButton,
-                                { opacity: input.trim() ? 1 : 0.5 }
-                            ]}
-                            disabled={!input.trim()}
-                        >
-                            <Ionicons name="send" size={22} color={appColors.tint} />
-                        </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                        onPress={handleSend}
+                        style={[
+                            styles.sendButton,
+                            {
+                                backgroundColor: input.trim() ? appColors.tint : appColors.card,
+                                borderColor: appColors.border
+                            }
+                        ]}
+                        disabled={!input.trim()}
+                    >
+                        <Ionicons
+                            name="send"
+                            size={20}
+                            color={input.trim() ? "white" : appColors.icon}
+                        />
+                    </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
         </View>
@@ -309,28 +316,33 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     inputBar: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderTopWidth: 0.5,
-        borderTopColor: 'rgba(150, 150, 150, 0.2)',
-    },
-    inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(0,0,0,0.1)',
+    },
+    inputContainer: {
+        flex: 1,
         borderRadius: 20,
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
         paddingVertical: 8,
-        // backgroundColor: "red"
+        minHeight: 40,
+        maxHeight: 100,
     },
     input: {
-        flex: 1,
         fontSize: 16,
-        maxHeight: 100,
-        paddingTop: Platform.OS === 'ios' ? 8 : 0,
-        paddingBottom: Platform.OS === 'ios' ? 8 : 0,
+        padding: 0,
+        maxHeight: 80,
     },
     sendButton: {
-        padding: 8,
-        marginLeft: 4,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
     },
 });

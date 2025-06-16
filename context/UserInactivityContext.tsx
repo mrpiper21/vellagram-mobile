@@ -30,7 +30,6 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
     useEffect(() => {
         // logout()
         // clearForm()
-        // Only handle inactivity if user is authenticated and has a PIN
         if (!isAuthenticated || !user?.pin) {
             // Clear any stored background time if user is not fully authenticated
             forceClearBackgroundTime();
@@ -44,7 +43,6 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
     }, [isAuthenticated, user?.pin]);
 
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-        // Don't handle app state changes if user is not fully authenticated
         if (!isAuthenticated || !user?.pin) {
             return;
         }

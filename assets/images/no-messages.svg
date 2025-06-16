@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Chat bubble -->
+    <path d="M160 40H40C35.5817 40 32 43.5817 32 48V152C32 156.418 35.5817 160 40 160H160C164.418 160 168 156.418 168 152V48C168 43.5817 164.418 40 160 40Z" stroke="#666" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Message lines -->
+    <path d="M60 80H140" stroke="#666" stroke-width="4" stroke-linecap="round"/>
+    <path d="M60 100H120" stroke="#666" stroke-width="4" stroke-linecap="round"/>
+    <path d="M60 120H100" stroke="#666" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Plus icon -->
+    <circle cx="150" cy="150" r="20" fill="#666"/>
+    <path d="M150 140V160" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <path d="M140 150H160" stroke="white" stroke-width="4" stroke-linecap="round"/>
+</svg> 

@@ -1,3 +1,4 @@
+import NoMessages from "@/components/empty-states/NoMessages";
 import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
@@ -5,45 +6,28 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+interface ChatItem {
+	id: string;
+	name: string;
+	lastMessage: string;
+	time: string;
+	type: 'group' | 'direct';
+	unreadCount: number;
+	avatar: string;
+	members: number;
+	nextPayment: string;
+	dueDate: string;
+}
+
+interface ChatData {
+	chats: ChatItem[];
+	savings: ChatItem[];
+}
+
 // Dummy chat groups for demonstration
-const dummyChats = {
+const dummyChats: ChatData = {
 	chats: [
-		{
-			id: "1",
-			name: "Family Susu Circle",
-			lastMessage: "Payment reminder: Next contribution due tomorrow!",
-			time: "2 min ago",
-			type: "group",
-			unreadCount: 3,
-			avatar: "F",
-			members: 12,
-			nextPayment: "GHS 200",
-			dueDate: "10 June 2024"
-		},
-		{
-			id: "2",
-			name: "Office Workers Susu",
-			lastMessage: "Welcome Sarah! Please introduce yourself",
-			time: "1 hour ago",
-			type: "direct",
-			unreadCount: 0,
-			avatar: "O",
-			members: 8,
-			nextPayment: "GHS 150",
-			dueDate: "15 June 2024"
-		},
-		{
-			id: "3",
-			name: "Friends Savings Group",
-			lastMessage: "Great job everyone on this month's savings!",
-			time: "3 hours ago",
-			type: "group",
-			unreadCount: 1,
-			avatar: "F",
-			members: 6,
-			nextPayment: "GHS 100",
-			dueDate: "20 June 2024"
-		},
+		// run dev
 	],
 	savings: [
 		{
@@ -73,15 +57,15 @@ const dummyChats = {
 	]
 };
 
-export default function ChatTab() {
+const ChatTab: React.FC = () => {
 	const { theme } = useTheme();
 	const colorScheme = theme.isDark ? "dark" : "light";
 	const appColors = Colors[colorScheme];
 
 	const [activeTab, setActiveTab] = useState<'chats' | 'savings'>('chats');
-	const [chats, setChats] = useState(dummyChats);
+	const [chats, setChats] = useState<ChatData>(dummyChats);
 
-	const renderChatItem = ({ item }: { item: typeof dummyChats.chats[0] }) => {
+	const renderChatItem = ({ item }: { item: ChatItem }) => {
 		const obg = {
 			chats: (
 				<TouchableOpacity
@@ -206,7 +190,6 @@ export default function ChatTab() {
 
 	return (
 		<View style={[styles.container, { backgroundColor: appColors.background }]}>
-			{/* Header */}
 			<View style={[styles.header, { backgroundColor: appColors.card }]}>
 				<Text style={[styles.headerTitle, { color: appColors.text }]}>
 					Messages
@@ -216,7 +199,6 @@ export default function ChatTab() {
 				</TouchableOpacity>
 			</View>
 
-			{/* Tabs */}
 			<View style={[styles.tabContainer, { backgroundColor: appColors.card }]}>
 				<TouchableOpacity
 					style={[
@@ -253,12 +235,18 @@ export default function ChatTab() {
 				data={chats[activeTab]}
 				keyExtractor={item => item.id}
 				renderItem={renderChatItem}
-				contentContainerStyle={styles.chatList}
+				contentContainerStyle={[
+					styles.chatList,
+					chats[activeTab].length === 0 && styles.emptyChatList
+				]}
 				showsVerticalScrollIndicator={false}
+				ListEmptyComponent={NoMessages}
 			/>
 		</View>
 	);
-}
+};
+
+export default ChatTab;
 
 const styles = StyleSheet.create({
 	container: {
@@ -298,7 +286,7 @@ const styles = StyleSheet.create({
 		fontWeight: "500",
 	},
 	chatList: {
-	// padding: 12,
+		padding: 16,
 	},
 	chatItem: {
 		flexDirection: "row",
@@ -434,5 +422,8 @@ const styles = StyleSheet.create({
 		color: '#fff',
 		fontSize: 10,
 		fontWeight: '600',
+	},
+	emptyChatList: {
+		flex: 1,
 	},
 }); 
