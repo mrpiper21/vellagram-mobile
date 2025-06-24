@@ -11,6 +11,7 @@ import { GroupDetailsSheetRoot } from '@/app/components/GroupDetailsSheetRoot';
 import { GroupDetailsProvider } from '@/app/context/GroupDetailsContext';
 import { Colors } from '@/constants/Colors';
 import { UserInactivityProvider } from "@/context/UserInactivityContext";
+import { SocketProvider } from '@/context/useSockectContext';
 import { useTheme } from '@/hooks/useTheme';
 import { AmountFilterSheet, DateFilterSheet } from './(tabs)/groups/components/FilterSheets';
 import { FilterSheetProvider, useFilterSheet } from './context/FilterSheetContext';
@@ -31,6 +32,7 @@ function RootLayoutContent() {
 
 	return (
 		<>
+			<SocketProvider>
 			<Stack
 				screenOptions={{
 					headerStyle: {
@@ -63,6 +65,7 @@ function RootLayoutContent() {
 				onDateSheetClose={hideDateSheet}
 			/>
 			<GroupDetailsSheetRoot />
+			</SocketProvider>
 		</>
 	);
 }

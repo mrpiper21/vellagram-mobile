@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/Colors";
+import { useSocketContext } from "@/context/useSockectContext";
 import { useTheme } from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -29,6 +30,7 @@ export default function ConversationDetail() {
     const flatListRef = useRef<FlatList>(null);
     const menuAnimation = useRef(new Animated.Value(0)).current;
     const detailsAnimation = useRef(new Animated.Value(0)).current;
+    const socket = useSocketContext()
 
     const toggleMenu = () => {
         const toValue = showMenu ? 0 : 1;
@@ -69,6 +71,7 @@ export default function ConversationDetail() {
 
     const handleSend = () => {
         if (input.trim()) {
+            socket.socket?.emit("message", input)
             setMessages([
                 ...messages,
                 { id: Date.now().toString(), text: input, sender: "me", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
