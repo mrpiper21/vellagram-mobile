@@ -1,9 +1,9 @@
 import { GroupDetailsSheet } from '@/app/(tabs)/groups/components/GroupDetailsSheet';
 import { useGroupDetails } from '@/app/context/GroupDetailsContext';
-import { useTheme } from '@/hooks/useTheme';
+import { useAppTheme } from '@/context/ThemeContext';
 
 export const GroupDetailsSheetRoot = () => {
-    const { theme } = useTheme();
+    const theme = useAppTheme();
     const colorScheme = theme.isDark ? 'dark' : 'light';
     const { selectedGroup, hideGroupDetails } = useGroupDetails();
 

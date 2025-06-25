@@ -1,5 +1,4 @@
-import { Colors } from '@/constants/Colors';
-import { useTheme } from '@/hooks/useTheme';
+import { useAppTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -9,31 +8,29 @@ import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 
 export default function TabLayout() {
-  const { theme } = useTheme();
-  const colorScheme = theme.isDark ? 'dark' : 'light';
-  const appColors = Colors[colorScheme];
+  const theme = useAppTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: appColors.tint,
-        tabBarInactiveTintColor: appColors.icon,
+        tabBarActiveTintColor: theme.tint,
+        tabBarInactiveTintColor: theme.icon,
         headerStyle: {
-          backgroundColor: appColors.card,
+          backgroundColor: theme.card,
         },
-        headerTintColor: appColors.text,
+        headerTintColor: theme.text,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
-            backgroundColor: appColors.card,
-            borderTopColor: appColors.border,
+            backgroundColor: theme.card,
+            borderTopColor: theme.border,
           },
           default: {
-            backgroundColor: appColors.card,
-            borderTopColor: appColors.border,
+            backgroundColor: theme.card,
+            borderTopColor: theme.border,
           },
         }),
       }}

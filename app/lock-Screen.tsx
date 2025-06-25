@@ -5,21 +5,21 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-	Alert,
-	SafeAreaView,
-	StatusBar,
-	StyleSheet,
-	Text,
-	TouchableOpacity,
-	Vibration,
-	View,
+    Alert,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    Vibration,
+    View,
 } from "react-native";
 import Animated, {
-	useAnimatedStyle,
-	useSharedValue,
-	withRepeat,
-	withSequence,
-	withTiming
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withTiming
 } from "react-native-reanimated";
 
 interface NumberButtonProps {
@@ -75,7 +75,8 @@ const PasscodeDot: React.FC<PasscodeDotProps> = ({ filled }) => {
 
 export default function PasscodeScreen() {
 	const { theme } = useTheme();
-	const { isAuthenticated, user } = useUserStore();
+	const user = useUserStore((state) => state.user);
+	const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 	const [passcode, setPasscode] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");

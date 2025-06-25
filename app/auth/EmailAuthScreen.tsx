@@ -12,11 +12,11 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
     View
 } from "react-native";
-import { TextInput } from "react-native-gesture-handler";
 import useFormStore from "../store/useFormStore";
 
 const EmailAuthScreen = () => {

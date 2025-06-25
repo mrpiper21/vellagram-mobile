@@ -29,3 +29,10 @@ export const useUserStore = create<UserState>()(
         }
     )
 );
+
+// Convenience hooks to prevent infinite loops
+export const useUser = () => useUserStore((state) => state.user);
+export const useIsAuthenticated = () => useUserStore((state) => state.isAuthenticated);
+export const useSetUser = () => useUserStore((state) => state.setUser);
+export const useLogout = () => useUserStore((state) => state.logout);
+export const useUpdateUser = () => useUserStore((state) => state.updateUser);

@@ -1,16 +1,17 @@
 import ContactSkeleton from "@/components/skeletons/ContactSkeleton";
-import { Colors } from "@/constants/Colors";
-import { useTheme } from "@/hooks/useTheme";
-import { checkPhoneNumberRegisteration } from "@/services/contact.service";
+import { useAppTheme } from "@/context/ThemeContext";
+import ContactBackgroundService from "@/services/contactBackgroundService";
+import { useContacts, useContactStore, useIsCheckingContacts } from "@/store/useContactStore";
 import { Ionicons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import { router } from "expo-router";
 import * as SMS from 'expo-sms';
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
     Image,
+    RefreshControl,
     StyleSheet,
     Text,
     TextInput,
@@ -18,87 +19,119 @@ import {
     View
 } from "react-native";
 
-interface Contact {
+interface DeviceContact {
     id: string;
     name?: string;
     phoneNumbers?: Contacts.PhoneNumber[];
     imageAvailable?: boolean;
     image?: Contacts.Image;
-    isRegistered?: boolean;
+}
+
+interface ContactWithRegistration extends DeviceContact {
+    isRegistered: boolean;
     userData?: any;
 }
 
-// Memoized Contact Item Component
 const ContactItem = React.memo(({
     contact,
     appColors,
-    isVerifying,
     onInvite,
-    onChat
+    onChat,
+    isChecking
 }: {
-    contact: Contact;
+    contact: ContactWithRegistration;
     appColors: any;
-    isVerifying: boolean;
-    onInvite: (contact: Contact) => void;
+    onInvite: (contact: ContactWithRegistration) => void;
     onChat: (userId: string) => void;
+    isChecking: boolean;
 }) => {
     const phoneNumber = contact.phoneNumbers?.[0]?.number;
+    const displayName = contact.name || 'Unknown';
+    const avatar = contact.image?.uri;
+    const cleanPhone = phoneNumber?.replace(/\D/g, '') || '';
+
+    // Get contact status from store to check if it's being processed
+    const contactStore = useContactStore.getState();
+    const storedContact = contactStore.getContactByPhone(cleanPhone);
+    const isBeingChecked = isChecking && storedContact && !storedContact.isRegistered;
 
     return (
         <View style={[styles.contactItem, { backgroundColor: appColors.card }]}>
             <View style={styles.contactInfo}>
-                {contact.imageAvailable && contact.image ? (
-                    <Image
-                        source={{ uri: contact.image.uri }}
-                        style={styles.avatar}
-                        defaultSource={require('@/assets/images/favicon.png')}
-                    />
+                {avatar ? (
+                    <Image source={{ uri: avatar }} style={styles.avatar} />
                 ) : (
-                    <View style={[styles.avatar, { backgroundColor: appColors.tint }]}>
-                        <Text style={styles.avatarText}>
-                            {contact.name?.charAt(0).toUpperCase()}
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: appColors.tint }]}>
+                        <Text style={[styles.avatarText, { color: 'white' }]}>
+                            {displayName.charAt(0).toUpperCase()}
                         </Text>
                     </View>
                 )}
                 <View style={styles.contactDetails}>
                     <Text style={[styles.contactName, { color: appColors.text }]}>
-                        {contact.name}
+                        {displayName}
                     </Text>
                     {phoneNumber && (
-                        <Text style={[styles.phoneNumber, { color: appColors.text, opacity: 0.7 }]}>
+                        <Text style={[styles.phoneNumber, { color: appColors.icon }]}>
                             {phoneNumber}
                         </Text>
                     )}
+                    {/* Status indicator */}
+                    {/* <View style={styles.statusContainer}>
+                        {contact.isRegistered ? (
+                            <View style={styles.statusRow}>
+                                <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+                                <Text style={[styles.statusText, { color: '#4CAF50' }]}>
+                                    Registered on Vellagram
+                                </Text>
+                            </View>
+                        ) : storedContact ? (
+                            <View style={styles.statusRow}>
+                                <View style={[styles.statusDot, { backgroundColor: '#FF9800' }]} />
+                                <Text style={[styles.statusText, { color: '#FF9800' }]}>
+                                    {isBeingChecked ? 'Checking...' : 'Not registered'}
+                                </Text>
+                                {isBeingChecked && (
+                                    <ActivityIndicator size="small" color="#FF9800" style={styles.checkingIndicator} />
+                                )}
+                            </View>
+                        ) : (
+                            <View style={styles.statusRow}>
+                                <View style={[styles.statusDot, { backgroundColor: '#9E9E9E' }]} />
+                                <Text style={[styles.statusText, { color: '#9E9E9E' }]}>
+                                    Pending check
+                                </Text>
+                            </View>
+                        )}
+                    </View> */}
                 </View>
             </View>
+
             {phoneNumber && (
                 <TouchableOpacity
                     style={[
                         styles.actionButton,
                         { 
                             backgroundColor: contact.isRegistered ? appColors.tint : appColors.card,
-                            borderColor: appColors.border
+                            borderColor: appColors.border,
+                            opacity: isBeingChecked ? 0.6 : 1
                         }
                     ]}
+                    disabled={isBeingChecked}
                     onPress={() => {
-                        if (contact.isRegistered) {
+                        if (contact.isRegistered && contact.userData) {
                             onChat(contact.userData.id);
                         } else {
                             onInvite(contact);
                         }
                     }}
-                    disabled={isVerifying}
                 >
-                    {isVerifying ? (
-                        <ActivityIndicator size="small" color={appColors.text} />
-                    ) : (
-                        <Text style={[
-                            styles.buttonText,
-                            { color: contact.isRegistered ? 'white' : appColors.text }
-                            ]}>
-                                {contact.isRegistered ? 'Chat' : 'Invite'}
-                            </Text>
-                    )}
+                    <Text style={[
+                        styles.buttonText,
+                        { color: contact.isRegistered ? 'white' : appColors.text }
+                        ]}>
+                            {isBeingChecked ? 'Checking...' : (contact.isRegistered ? 'Chat' : 'Invite')}
+                    </Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -106,42 +139,35 @@ const ContactItem = React.memo(({
 });
 
 export default function ContactsScreen() {
-    const { theme } = useTheme();
+    const theme = useAppTheme();
     const colorScheme = theme.isDark ? 'dark' : 'light';
-    const appColors = Colors[colorScheme];
+    const appColors = useMemo(() => ({
+        text: theme.text,
+        background: theme.background,
+        tint: theme.tint,
+        icon: theme.icon,
+        card: theme.card,
+        border: theme.border,
+        success: theme.success,
+        accent: theme.accent
+    }), [theme]);
 
-    const [contacts, setContacts] = useState<Contact[]>([]);
-    const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
+    const [deviceContacts, setDeviceContacts] = useState<DeviceContact[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [verifyingContacts, setVerifyingContacts] = useState<Set<string>>(new Set());
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const verifyContact = useCallback(async (contact: Contact) => {
-        if (!contact.phoneNumbers?.[0]?.number) return;
+    // Contact store hooks - use stable selectors
+    const contacts = useContacts();
+    const isCheckingContacts = useIsCheckingContacts();
 
-        const phoneNumber = contact.phoneNumbers[0].number.replace(/\D/g, '');
-        setVerifyingContacts(prev => new Set(prev).add(contact.id));
+    // Use refs to prevent infinite loops
+    const contactServiceRef = useRef<ContactBackgroundService | null>(null);
+    const hasCheckedContactsRef = useRef(false);
 
-        try {
-            const result = await checkPhoneNumberRegisteration(phoneNumber);
-            setContacts(prev => prev.map(c =>
-                c.id === contact.id
-                    ? { ...c, isRegistered: result.isResgistered, userData: result.data }
-                    : c
-            ));
-        } catch (error) {
-            console.error('Error verifying contact:', error);
-        } finally {
-            setVerifyingContacts(prev => {
-                const next = new Set(prev);
-                next.delete(contact.id);
-                return next;
-            });
-        }
-    }, []);
-
-    const handleInvite = useCallback(async (contact: Contact) => {
+    const handleInvite = useCallback(async (contact: ContactWithRegistration) => {
         if (!contact.phoneNumbers?.[0]?.number) return;
 
         const phoneNumber = contact.phoneNumbers[0].number.replace(/\D/g, '');
@@ -150,10 +176,7 @@ export default function ContactsScreen() {
         try {
             const isAvailable = await SMS.isAvailableAsync();
             if (isAvailable) {
-                await SMS.sendSMSAsync(
-                    [phoneNumber],
-                    message
-                );
+                await SMS.sendSMSAsync([phoneNumber], message);
             } else {
                 console.log('SMS is not available on this device');
             }
@@ -166,76 +189,188 @@ export default function ContactsScreen() {
         router.push(`/conversation/${userId}`);
     }, []);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const { status } = await Contacts.requestPermissionsAsync();
-                if (status === 'granted') {
-                    const { data } = await Contacts.getContactsAsync({
-                        fields: [
-                            Contacts.Fields.Name,
-                            Contacts.Fields.PhoneNumbers,
-                            Contacts.Fields.Image,
-                        ],
-                    });
-                    const formattedContacts: Contact[] = data.map(contact => ({
-                        id: contact.id || Math.random().toString(),
-                        name: contact.name,
-                        phoneNumbers: contact.phoneNumbers,
-                        imageAvailable: contact.imageAvailable,
-                        image: contact.image,
-                    }));
-                    setContacts(formattedContacts);
-                    setFilteredContacts(formattedContacts);
-                } else {
-                    setError('Permission to access contacts was denied');
-                }
-            } catch (err) {
-                setError('Failed to load contacts');
-            } finally {
-                setLoading(false);
-            }
-        })();
+    // Handle pull-to-refresh
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const service = ContactBackgroundService.getInstance();
+            await service.checkUnregisteredContacts();
+        } catch (error) {
+            console.error('Error refreshing contacts:', error);
+        } finally {
+            setRefreshing(false);
+        }
     }, []);
 
+    // Initialize contact service once
+    const initializeContactService = useCallback(async () => {
+        if (contactServiceRef.current) return contactServiceRef.current;
+        
+        const service = ContactBackgroundService.getInstance();
+        await service.startBackgroundSync(30);
+        contactServiceRef.current = service;
+        return service;
+    }, []);
+
+    // Load device contacts only once
+    const loadDeviceContacts = useCallback(async () => {
+        console.log("🔄 loadDeviceContacts called, isInitialized:", isInitialized);
+        if (isInitialized) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            console.log("🔐 Requesting contact permissions...");
+            const { status } = await Contacts.requestPermissionsAsync();
+            console.log("📱 Contact permission status:", status);
+            
+            if (status === 'granted') {
+                console.log("✅ Permission granted, loading contacts...");
+                const { data } = await Contacts.getContactsAsync({
+                    fields: [
+                        Contacts.Fields.Name,
+                        Contacts.Fields.PhoneNumbers,
+                        Contacts.Fields.Image,
+                    ],
+                });
+                
+                console.log("📱 Raw contacts data length:", data.length);
+                
+                const formattedContacts: DeviceContact[] = data.map(contact => ({
+                    id: contact.id || Math.random().toString(),
+                    name: contact.name,
+                    phoneNumbers: contact.phoneNumbers,
+                    imageAvailable: contact.imageAvailable,
+                    image: contact.image,
+                }));
+                
+                setDeviceContacts(formattedContacts);
+                setIsInitialized(true);
+                
+                // Initialize contact service (this will handle background checking)
+                console.log("🚀 Initializing contact service for background checking...");
+                try {
+                    await initializeContactService();
+                } catch (error) {
+                    console.warn("⚠️ Contact service initialization failed, but continuing with contact display:", error);
+                }
+                
+                console.log("🔄 Loaded", formattedContacts.length, "device contacts");
+                console.log("✅ Contact registration checking will happen in background");
+            } else {
+                console.log("❌ Permission denied");
+                setError('Permission to access contacts was denied');
+            }
+        } catch (err) {
+            console.error("❌ Error in loadDeviceContacts:", err);
+            setError('Failed to load contacts');
+        } finally {
+            setLoading(false);
+        }
+    }, [isInitialized, initializeContactService]);
+
+    // Load contacts on mount
     useEffect(() => {
+        loadDeviceContacts();
+        
+        // Fallback timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+            if (loading) {
+                console.warn("⚠️ Loading timeout reached, forcing loading to false");
+                setLoading(false);
+            }
+        }, 10000); // 10 seconds timeout
+        
+        return () => clearTimeout(timeout);
+    }, [loadDeviceContacts, loading]);
+
+    // Merge device contacts with contact store data and filter based on search
+    const filteredContacts = useMemo(() => {
+        const mergedContacts: ContactWithRegistration[] = deviceContacts.map(deviceContact => {
+            const phoneNumber = deviceContact.phoneNumbers?.[0]?.number;
+            if (!phoneNumber) return { ...deviceContact, isRegistered: false };
+
+            const cleanPhone = phoneNumber.replace(/\D/g, '');
+            const storedContact = contacts.find(c => c.phoneNumber === cleanPhone);
+
+            return {
+                ...deviceContact,
+                isRegistered: storedContact?.isRegistered || false,
+                userData: storedContact?.userData,
+            };
+        });
+
+        // Filter based on search query
         if (searchQuery.trim() === '') {
-            setFilteredContacts(contacts);
+            return mergedContacts;
         } else {
-            const filtered = contacts.filter(contact =>
+            return mergedContacts.filter(contact =>
                 contact.name?.toLowerCase().includes(searchQuery.toLowerCase())
             );
-            setFilteredContacts(filtered);
         }
-    }, [searchQuery, contacts]);
+    }, [deviceContacts, contacts, searchQuery]);
 
-    const handleEndReached = useCallback(() => {
-        filteredContacts.forEach(contact => {
-            if (!contact.isRegistered && !verifyingContacts.has(contact.id)) {
-                verifyContact(contact);
-            }
-        });
-    }, [filteredContacts, verifyingContacts, verifyContact]);
+    // Get recently checked contacts
+    const recentlyCheckedContacts = useMemo(() => {
+        const now = Date.now();
+        const oneHourAgo = now - (60 * 60 * 1000); // 1 hour ago
+        
+        return contacts
+            .filter(contact => contact.lastChecked > oneHourAgo)
+            .sort((a, b) => b.lastChecked - a.lastChecked)
+            .slice(0, 5); // Show only 5 most recent
+    }, [contacts]);
 
-    const renderItem = useCallback(({ item }: { item: Contact }) => (
+    const renderItem = useCallback(({ item }: { item: ContactWithRegistration }) => (
         <ContactItem
             contact={item}
             appColors={appColors}
-            isVerifying={verifyingContacts.has(item.id)}
             onInvite={handleInvite}
             onChat={handleChat}
+            isChecking={isCheckingContacts}
         />
-    ), [appColors, verifyingContacts, handleInvite, handleChat]);
+    ), [appColors, handleInvite, handleChat, isCheckingContacts]);
 
-    const keyExtractor = useCallback((item: Contact) => item.id, []);
+    const keyExtractor = useCallback((item: ContactWithRegistration) => item.id, []);
 
-    const getItemLayout = useCallback((data: ArrayLike<Contact> | null | undefined, index: number) => ({
-        length: 82,
-        offset: 82 * index,
-        index,
-    }), []);
+    const renderHeader = useCallback(() => (
+        <View>
+            {/* Recently Checked Section */}
+            {recentlyCheckedContacts.length > 0 && (
+                <View style={[styles.recentSection, { backgroundColor: appColors.card }]}>
+                    {recentlyCheckedContacts.map(contact => {
+                        const deviceContact = deviceContacts.find(dc => {
+                            const phoneNumber = dc.phoneNumbers?.[0]?.number;
+                            if (!phoneNumber) return false;
+                            const cleanPhone = phoneNumber.replace(/\D/g, '');
+                            return cleanPhone === contact.phoneNumber;
+                        });
+                        
+                        if (!deviceContact) return null;
+                        
+                        return (
+                            <ContactItem
+                                key={contact.phoneNumber}
+                                contact={{
+                                    ...deviceContact,
+                                    isRegistered: contact.isRegistered,
+                                    userData: contact.userData,
+                                }}
+                                appColors={appColors}
+                                onInvite={handleInvite}
+                                onChat={handleChat}
+                                isChecking={isCheckingContacts}
+                            />
+                        );
+                    })}
+                </View>
+            )}
+        </View>
+    ), [recentlyCheckedContacts, deviceContacts, appColors, handleInvite, handleChat, isCheckingContacts]);
 
     if (loading) {
+        console.log("🔄 Showing loading state, deviceContacts length:", deviceContacts.length);
         return (
             <View style={[styles.container, { backgroundColor: appColors.background }]}>
                 <View style={[styles.searchContainer, { backgroundColor: appColors.card }]}>
@@ -257,10 +392,23 @@ export default function ContactsScreen() {
         );
     }
 
+    console.log("📱 Rendering contacts screen, deviceContacts length:", deviceContacts.length, "filteredContacts length:", filteredContacts.length);
+
     if (error) {
         return (
             <View style={[styles.container, styles.centerContent, { backgroundColor: appColors.background }]}>
                 <Text style={[styles.errorText, { color: appColors.text }]}>{error}</Text>
+            </View>
+        );
+    }
+
+    // Show contacts even if no stored contacts yet, as long as device contacts are loaded
+    if (deviceContacts.length === 0 && !loading) {
+        return (
+            <View style={[styles.container, styles.centerContent, { backgroundColor: appColors.background }]}>
+                <Text style={[styles.errorText, { color: appColors.text }]}>
+                    No contacts found. Please check your contact permissions.
+                </Text>
             </View>
         );
     }
@@ -276,19 +424,26 @@ export default function ContactsScreen() {
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                 />
+                {isCheckingContacts && (
+                    <ActivityIndicator size="small" color={appColors.tint} style={styles.loadingIndicator} />
+                )}
             </View>
             <FlatList
                 data={filteredContacts}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
-                onEndReached={handleEndReached}
-                onEndReachedThreshold={0.5}
                 initialNumToRender={10}
                 maxToRenderPerBatch={10}
                 windowSize={5}
-                getItemLayout={getItemLayout}
                 removeClippedSubviews={true}
                 updateCellsBatchingPeriod={50}
+                ListHeaderComponent={renderHeader}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                    />
+                }
             />
         </View>
     );
@@ -340,6 +495,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    avatarPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     avatarText: {
         color: 'white',
         fontSize: 20,
@@ -372,5 +535,37 @@ const styles = StyleSheet.create({
         fontSize: 16,
         textAlign: 'center',
         marginHorizontal: 20,
+    },
+    loadingIndicator: {
+        marginLeft: 12,
+    },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statusDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        marginRight: 4,
+    },
+    statusText: {
+        fontSize: 12,
+    },
+    checkingIndicator: {
+        marginLeft: 8,
+    },
+    recentSection: {
+        padding: 16,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 12,
     },
 });

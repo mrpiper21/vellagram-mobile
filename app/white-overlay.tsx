@@ -11,18 +11,24 @@ const WhiteOverlay = () => {
 	const { user, isAuthenticated } = useUserStore();
 	const { isLocked } = useUserInactivity();
 
+	console.log("🔍 WhiteOverlay render:", { isAuthenticated, hasUser: !!user, hasPin: !!user?.pin, isLocked });
+
 	useEffect(() => {
+		console.log("🔍 WhiteOverlay useEffect:", { isAuthenticated, hasUser: !!user, hasPin: !!user?.pin });
 		// If user is not authenticated or doesn't have a PIN, redirect to login
 		if (!isAuthenticated || !user?.pin) {
+			console.log("🔍 Redirecting to EmailAuthScreen");
 			router.replace("/auth/EmailAuthScreen");
 		}
 	}, [isAuthenticated, user?.pin]);
 
 	// Don't show overlay if user is not authenticated or doesn't have a PIN
 	if (!isAuthenticated || !user?.pin) {
+		console.log("🔍 WhiteOverlay returning null - not authenticated or no PIN");
 		return null;
 	}
 
+	console.log("🔍 WhiteOverlay rendering overlay");
 	return (
 		<View style={[styles.container, { backgroundColor: theme.background }]}>
 			<VellagramLogo showText={false} animated size={120} />

@@ -1,4 +1,4 @@
-import { useUser } from '@/app/store/useUserStore';
+import { useUser } from '@/store/useUserStore';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 
@@ -33,11 +33,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socketRef.current.on("disconnect", () => {
         setIsConnected(false);
       });
+
+      socketRef.current.on('message', (messageData) => {
+        console.log('Message received:', messageData.content);
+        
+        socketRef.current?.emit('message_delivered', {
+          messageId: messageData.id,
+          acknowledgmentId: messageData.acknowledgmentId
+        });
+      });
   
       return () => {
         socketRef.current?.disconnect();
       };
-    }, [user?.email]);
+    }, [user?.id]);
 
   return (
     <SocketContext.Provider value={{ socket: socketRef.current, isConnected }}>

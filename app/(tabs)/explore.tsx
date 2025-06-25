@@ -13,12 +13,10 @@ import useFormStore from '../store/useFormStore';
 
 export default function TabTwoScreen() {
   const { clearForm } = useFormStore()
-  const { user, isAuthenticated, logout } = useUserStore((state) => ({
-    user: state.user,
-    isAuthenticated: state.isAuthenticated,
-    logout: state.logout
-
-  }));
+  const user = useUserStore((state) => state.user);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const logout = useUserStore((state) => state.logout);
+  
   useEffect(() => {
     clearForm()
     logout()

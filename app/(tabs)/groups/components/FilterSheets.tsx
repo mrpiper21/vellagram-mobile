@@ -1,14 +1,16 @@
-import { Colors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-interface FilterSheetsProps {
-    colorScheme: 'light' | 'dark';
+interface AmountFilterSheetProps {
     isAmountSheetVisible: boolean;
-    isDateSheetVisible: boolean;
     onAmountSheetClose: () => void;
+}
+
+interface DateFilterSheetProps {
+    isDateSheetVisible: boolean;
     onDateSheetClose: () => void;
 }
 
@@ -48,14 +50,14 @@ export const useFilterSheets = () => {
 };
 
 export const AmountFilterSheet = ({
-    colorScheme,
     isAmountSheetVisible,
     onAmountSheetClose
-}: FilterSheetsProps) => {
-    const appColors = Colors[colorScheme];
+}: AmountFilterSheetProps) => {
+    const theme = useAppTheme();
     const { amountSheetRef, snapPoints, renderBackdrop } = useFilterSheets();
     const [minAmount, setMinAmount] = useState('');
     const [maxAmount, setMaxAmount] = useState('');
+   
 
     return (
         <BottomSheet
@@ -65,37 +67,37 @@ export const AmountFilterSheet = ({
             enablePanDownToClose
             onClose={onAmountSheetClose}
             backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: appColors.card }}
+            backgroundStyle={{ backgroundColor: theme.card }}
             handleIndicatorStyle={{ backgroundColor: '#ccc' }}
         >
             <BottomSheetView style={styles.bottomSheetContent}>
-                <Text style={[styles.bottomSheetTitle, { color: appColors.text }]}>Filter by Amount</Text>
+                <Text style={[styles.bottomSheetTitle, { color: theme.text }]}>Filter by Amount</Text>
                 <View style={styles.amountInputs}>
                     <View style={styles.amountInputContainer}>
-                        <Text style={[styles.inputLabel, { color: appColors.text }]}>Minimum Amount</Text>
+                        <Text style={[styles.inputLabel, { color: theme.text }]}>Minimum Amount</Text>
                         <TextInput
                             style={[styles.amountInput, {
-                                backgroundColor: appColors.background,
-                                color: appColors.text,
-                                borderColor: appColors.border
+                                backgroundColor: theme.background,
+                                color: theme.text,
+                                borderColor: theme.border
                             }]}
                             placeholder="0"
-                            placeholderTextColor={appColors.icon}
+                            placeholderTextColor={theme.icon}
                             keyboardType="numeric"
                             value={minAmount}
                             onChangeText={setMinAmount}
                         />
                     </View>
                     <View style={styles.amountInputContainer}>
-                        <Text style={[styles.inputLabel, { color: appColors.text }]}>Maximum Amount</Text>
+                        <Text style={[styles.inputLabel, { color: theme.text }]}>Maximum Amount</Text>
                         <TextInput
                             style={[styles.amountInput, {
-                                backgroundColor: appColors.background,
-                                color: appColors.text,
-                                borderColor: appColors.border
+                                backgroundColor: theme.background,
+                                color: theme.text,
+                                borderColor: theme.border
                             }]}
                             placeholder="0"
-                            placeholderTextColor={appColors.icon}
+                            placeholderTextColor={theme.icon}
                             keyboardType="numeric"
                             value={maxAmount}
                             onChangeText={setMaxAmount}
@@ -103,7 +105,7 @@ export const AmountFilterSheet = ({
                     </View>
                 </View>
                 <TouchableOpacity
-                    style={[styles.applyButton, { backgroundColor: appColors.tint }]}
+                    style={[styles.applyButton, { backgroundColor: theme.tint }]}
                     onPress={onAmountSheetClose}
                 >
                     <Text style={styles.applyButtonText}>Apply Filter</Text>
@@ -114,11 +116,10 @@ export const AmountFilterSheet = ({
 };
 
 export const DateFilterSheet = ({
-    colorScheme,
     isDateSheetVisible,
     onDateSheetClose
-}: FilterSheetsProps) => {
-    const appColors = Colors[colorScheme];
+}: DateFilterSheetProps) => {
+    const theme = useAppTheme();
     const { dateSheetRef, snapPoints, renderBackdrop } = useFilterSheets();
     const [startDate, setStartDate] = useState(new Date());
 
@@ -130,11 +131,11 @@ export const DateFilterSheet = ({
             enablePanDownToClose
             onClose={onDateSheetClose}
             backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: appColors.card }}
+            backgroundStyle={{ backgroundColor: theme.card }}
             handleIndicatorStyle={{ backgroundColor: '#ccc' }}
         >
             <BottomSheetView style={styles.bottomSheetContent}>
-                <Text style={[styles.bottomSheetTitle, { color: appColors.text }]}>Filter by Start Date</Text>
+                <Text style={[styles.bottomSheetTitle, { color: theme.text }]}>Filter by Start Date</Text>
                 <View style={styles.datePickerContainer}>
                     <DateTimePicker
                         value={startDate}
@@ -143,11 +144,11 @@ export const DateFilterSheet = ({
                         onChange={(event, selectedDate) => {
                             setStartDate(selectedDate || startDate);
                         }}
-                        textColor={appColors.text}
+                        textColor={theme.text}
                     />
                 </View>
                 <TouchableOpacity
-                    style={[styles.applyButton, { backgroundColor: appColors.tint }]}
+                    style={[styles.applyButton, { backgroundColor: theme.tint }]}
                     onPress={onDateSheetClose}
                 >
                     <Text style={styles.applyButtonText}>Apply Filter</Text>

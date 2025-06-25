@@ -1,429 +1,281 @@
-import NoMessages from "@/components/empty-states/NoMessages";
-import { Colors } from "@/constants/Colors";
-import { useTheme } from "@/hooks/useTheme";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import NoMessages from '@/components/empty-states/NoMessages';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useAppTheme } from '@/context/ThemeContext';
+import { useSocketChat } from '@/hooks/useSocketChat';
+import { useConversations, useTotalUnreadCount } from '@/store/useChatStore';
+import { router } from 'expo-router';
+import React, { useMemo } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-interface ChatItem {
-	id: string;
-	name: string;
-	lastMessage: string;
-	time: string;
-	type: 'group' | 'direct';
-	unreadCount: number;
-	avatar: string;
-	members: number;
-	nextPayment: string;
-	dueDate: string;
-}
+function ChatScreenContent() {
+	const theme = useAppTheme();
 
-interface ChatData {
-	chats: ChatItem[];
-	savings: ChatItem[];
-}
+	// Chat store hooks with error handling
+	const conversationsObject = useConversations();
+	const totalUnreadCount = useTotalUnreadCount();
+	
+	// Socket integration
+	const { isConnected } = useSocketChat();
 
-// Dummy chat groups for demonstration
-const dummyChats: ChatData = {
-	chats: [
-		// run dev
-	],
-	savings: [
-		{
-			id: "1",
-			name: "Family Susu Circle",
-			lastMessage: "Payment reminder: Next contribution due tomorrow!",
-			time: "2 min ago",
-			type: "group",
-			unreadCount: 2,
-			avatar: "F",
-			members: 12,
-			nextPayment: "GHS 200",
-			dueDate: "10 June 2024"
-		},
-		{
-			id: "3",
-			name: "Friends Savings Group",
-			lastMessage: "Great job everyone on this month's savings!",
-			time: "3 hours ago",
-			type: "group",
-			unreadCount: 0,
-			avatar: "F",
-			members: 6,
-			nextPayment: "GHS 100",
-			dueDate: "20 June 2024"
-		},
-	]
-};
+	// Memoize and validate conversations to prevent crashes
+	const safeConversations = useMemo(() => {
+		try {
+			if (!conversationsObject || typeof conversationsObject !== 'object') {
+				console.warn('Conversations object is invalid:', conversationsObject);
+				return [];
+			}
+			
+			// Transform the conversations object to an array
+			const conversationsArray = Object.values(conversationsObject)
+				.filter(conv => conv && typeof conv === 'object')
+				.sort((a, b) => {
+					// Handle cases where lastMessageTime might be undefined
+					const timeA = a?.lastMessageTime || a?.createdAt || 0;
+					const timeB = b?.lastMessageTime || b?.createdAt || 0;
+					return timeB - timeA; // Sort by most recent first
+				});
+			
+			return conversationsArray;
+		} catch (error) {
+			console.error('Error processing conversations:', error);
+			return [];
+		}
+	}, [conversationsObject]);
 
-const ChatTab: React.FC = () => {
-	const { theme } = useTheme();
-	const colorScheme = theme.isDark ? "dark" : "light";
-	const appColors = Colors[colorScheme];
+	// Safe total unread count
+	const safeTotalUnreadCount = useMemo(() => {
+		try {
+			return typeof totalUnreadCount === 'number' ? totalUnreadCount : 0;
+		} catch (error) {
+			console.error('Error processing total unread count:', error);
+			return 0;
+		}
+	}, [totalUnreadCount]);
 
-	const [activeTab, setActiveTab] = useState<'chats' | 'savings'>('chats');
-	const [chats, setChats] = useState<ChatData>(dummyChats);
+	console.log("🔍 TabOneScreen rendering with theme:", theme);
+	console.log("📱 Conversations count:", safeConversations?.length);
+	console.log("📱 Total unread count:", safeTotalUnreadCount);
 
-	const renderChatItem = ({ item }: { item: ChatItem }) => {
-		const obg = {
-			chats: (
+	const renderConversation = ({ item }: { item: any }) => {
+		try {
+			if (!item || typeof item !== 'object') {
+				console.warn('Invalid conversation item:', item);
+				return null;
+			}
+
+			const lastMessage = item?.lastMessage;
+			const isUnread = (item?.unreadCount || 0) > 0;
+
+			return (
 				<TouchableOpacity
-					style={[
-						styles.chatItem,
-						{ backgroundColor: appColors.background }
-					]}
-					onPress={() => router.push(`/conversation/${item.id}`)}
-					activeOpacity={0.7}
-				>
-					<View style={[styles.avatar, { backgroundColor: appColors.tint }]}>
-						<Text style={styles.avatarText}>{item.avatar}</Text>
-					</View>
-
-					<View style={styles.chatContent}>
-						<View style={styles.chatHeader}>
-							<View style={styles.nameContainer}>
-								<Text style={[styles.chatName, { color: appColors.text }]}>
-									{item.name}
-								</Text>
-								<View style={styles.memberCount}>
-									<Text style={[styles.memberText, { color: appColors.icon }]}>
-										{item.members}
-									</Text>
-								</View>
-							</View>
-							<Text style={[styles.timeStamp, { color: appColors.text }]}>
-								{item.time}
-							</Text>
-						</View>
-
-						<View style={styles.messageRow}>
-							<Text style={[styles.lastMessage, { color: appColors.text }]} numberOfLines={1}>
-								{item.lastMessage}
-							</Text>
-
-							{item.unreadCount > 0 && (
-								<View style={styles.unreadBadge}>
-									<Text style={styles.unreadCount}>{item.unreadCount}</Text>
-								</View>
-							)}
-						</View>
-					</View>
-				</TouchableOpacity>
-			),
-			savings: (
-				<TouchableOpacity
-					style={[
-						styles.chatItem,
-						{ backgroundColor: appColors.background }
-					]}
-					onPress={() => router.push(`/conversation/${item.id}`)}
-					activeOpacity={0.7}
+					style={[styles.conversationItem, { backgroundColor: theme.card }]}
+					onPress={() => {
+						if (item?.id) {
+							router.push(`/conversation/${item.id}`);
+						}
+					}}
 				>
 					<View style={styles.avatarContainer}>
-						<View style={[styles.avatar, { backgroundColor: appColors.tint }]} />
-						<View style={[styles.avatar, {
-							backgroundColor: appColors.tabIconDefault,
-							position: "absolute",
-							borderWidth: 2,
-							borderColor: 'white',
-							left: 7,
-							top: 0,
-							zIndex: 1
-						}]} />
-						<View style={[styles.memberCountBadge, { backgroundColor: appColors.tint }]}>
-							<Text style={styles.memberCountText}>2+</Text>
-						</View>
-					</View>
-
-					<View style={styles.chatContent}>
-						<View style={styles.chatHeader}>
-							<View style={styles.nameContainer}>
-								<Text style={[styles.chatName, { color: appColors.text }]}>
-									{item.name}
-								</Text>
-								<View style={styles.memberCount}>
-									<Ionicons name="people" size={14} color={appColors.icon} />
-									<Text style={[styles.memberText, { color: appColors.icon }]}>
-										{item.members}
-									</Text>
-								</View>
-							</View>
-							<Text style={[styles.timeStamp, { color: appColors.text }]}>
-								{item.time}
+						<View style={[styles.avatar, { backgroundColor: theme.tint }]}>
+							<Text style={styles.avatarText}>
+								{item?.isGroup ? 'G' : item?.participants?.[0]?.charAt(0)?.toUpperCase() || 'U'}
 							</Text>
 						</View>
-
-						<View style={styles.messageRow}>
-							<View style={styles.paymentInfo}>
-								<View style={styles.paymentRow}>
-									<Text style={[styles.paymentLabel, { color: appColors.icon }]}>
-										Next payment:
-									</Text>
-									<View style={[styles.amountBadge, { backgroundColor: appColors.tint }]}>
-										<Text style={styles.amountText}>GHS 200</Text>
-									</View>
-								</View>
-								<View style={styles.dueDateRow}>
-									<Text style={[styles.dueDateLabel, { color: appColors.icon }]}>
-										Due:
-									</Text>
-									<Text style={[styles.dueDateText, { color: appColors.text }]}>
-										10 june, 2025
-									</Text>
-								</View>
+						{isUnread && (
+							<View style={[styles.unreadBadge, { backgroundColor: theme.tint }]}>
+								<Text style={styles.unreadCount}>
+									{(item?.unreadCount || 0) > 99 ? '99+' : (item?.unreadCount || 0)}
+								</Text>
 							</View>
-
-							{item.unreadCount > 0 && (
-								<View style={styles.unreadBadge}>
-									<Text style={styles.unreadCount}>{item.unreadCount}</Text>
-								</View>
+						)}
+					</View>
+					
+					<View style={styles.conversationInfo}>
+						<View style={styles.conversationHeader}>
+							<Text style={[styles.conversationName, { color: theme.text }]}>
+								{item?.isGroup ? item?.groupName : 'Chat'}
+							</Text>
+							{lastMessage && (
+								<Text style={[styles.messageTime, { color: theme.icon }]}>
+									{new Date(lastMessage?.timestamp || Date.now()).toLocaleTimeString([], { 
+										hour: '2-digit', 
+										minute: '2-digit' 
+									})}
+								</Text>
+							)}
+						</View>
+						
+						<View style={styles.conversationFooter}>
+							<Text 
+								style={[
+									styles.lastMessage, 
+									{ color: isUnread ? theme.text : theme.icon }
+								]}
+								numberOfLines={1}
+							>
+								{lastMessage?.content || 'No messages yet'}
+							</Text>
+							{isUnread && (
+								<View style={[styles.unreadDot, { backgroundColor: theme.tint }]} />
 							)}
 						</View>
 					</View>
 				</TouchableOpacity>
-			)
-		};
-
-		return obg[activeTab];
+			);
+		} catch (error) {
+			console.error('Error rendering conversation:', error);
+			return null;
+		}
 	};
 
+	const renderEmptyState = () => (
+		<NoMessages />
+	);
+
 	return (
-		<View style={[styles.container, { backgroundColor: appColors.background }]}>
-			<View style={[styles.header, { backgroundColor: appColors.card }]}>
-				<Text style={[styles.headerTitle, { color: appColors.text }]}>
-					Messages
+		<View style={[styles.container, { backgroundColor: theme.background }]}>
+			{/* Header */}
+			<View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+				<Text style={[styles.headerTitle, { color: theme.text }]}>
+					Chats
 				</Text>
-				<TouchableOpacity style={styles.createButton}>
-					<Ionicons name="add-circle-outline" size={24} color={appColors.tint} />
-				</TouchableOpacity>
+				{safeTotalUnreadCount > 0 && (
+					<View style={[styles.totalUnreadBadge, { backgroundColor: theme.tint }]}>
+						<Text style={styles.totalUnreadCount}>
+							{safeTotalUnreadCount > 99 ? '99+' : safeTotalUnreadCount}
+						</Text>
+					</View>
+				)}
 			</View>
 
-			<View style={[styles.tabContainer, { backgroundColor: appColors.card }]}>
-				<TouchableOpacity
-					style={[
-						styles.tab,
-						activeTab === 'chats' && { borderBottomColor: appColors.tint }
-					]}
-					onPress={() => setActiveTab('chats')}
-				>
-					<Text style={[
-						styles.tabText,
-						{ color: activeTab === 'chats' ? appColors.tint : appColors.text }
-					]}>
-						Chats
-					</Text>
-				</TouchableOpacity>
-				<TouchableOpacity
-					style={[
-						styles.tab,
-						activeTab === 'savings' && { borderBottomColor: appColors.tint }
-					]}
-					onPress={() => setActiveTab('savings')}
-				>
-					<Text style={[
-						styles.tabText,
-						{ color: activeTab === 'savings' ? appColors.tint : appColors.text }
-					]}>
-						Savings
-					</Text>
-				</TouchableOpacity>
-			</View>
-
-			{/* Chat List */}
+			{/* Conversations List */}
 			<FlatList
-				data={chats[activeTab]}
-				keyExtractor={item => item.id}
-				renderItem={renderChatItem}
-				contentContainerStyle={[
-					styles.chatList,
-					chats[activeTab].length === 0 && styles.emptyChatList
-				]}
+				data={safeConversations}
+				renderItem={renderConversation}
+				keyExtractor={(item) => item?.id || Math.random().toString()}
+				style={styles.conversationsList}
+				contentContainerStyle={safeConversations?.length === 0 ? styles.emptyList : styles.conversationsContent}
+				ListEmptyComponent={renderEmptyState}
 				showsVerticalScrollIndicator={false}
-				ListEmptyComponent={NoMessages}
 			/>
 		</View>
 	);
-};
+}
 
-export default ChatTab;
+export default function TabOneScreen() {
+	return (
+		<ErrorBoundary>
+			<ChatScreenContent />
+		</ErrorBoundary>
+	);
+}
 
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 	},
 	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
 		paddingHorizontal: 16,
 		paddingVertical: 12,
-		borderBottomWidth: 0.5,
-		borderBottomColor: "rgba(150, 150, 150, 0.2)",
-		paddingTop: 35
+		borderBottomWidth: 1,
 	},
 	headerTitle: {
-		fontSize: 20,
-		fontWeight: "600",
+		fontSize: 24,
+		fontWeight: 'bold',
 	},
-	createButton: {
-		padding: 4,
-	},
-	tabContainer: {
-		flexDirection: "row",
-		borderBottomWidth: 0.5,
-		borderBottomColor: "rgba(150, 150, 150, 0.2)",
-	},
-	tab: {
-		flex: 1,
-		paddingVertical: 12,
-		alignItems: "center",
-		borderBottomWidth: 2,
-		borderBottomColor: "transparent",
-	},
-	tabText: {
-		fontSize: 16,
-		fontWeight: "500",
-	},
-	chatList: {
-		padding: 16,
-	},
-	chatItem: {
-		flexDirection: "row",
-		paddingVertical: 12,
-		paddingHorizontal: 16,
-		borderRadius: 0,
-		marginBottom: 0,
-		borderBottomWidth: 0.5,
-		borderBottomColor: "rgba(150, 150, 150, 0.2)",
-	},
-	avatarContainer: {
-		width: 48,
-		height: 48,
-		marginRight: 12,
-		position: 'relative',
-	},
-	avatar: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	avatarText: {
-		color: "#fff",
-		fontWeight: "bold",
-		fontSize: 20,
-	},
-	chatContent: {
-		flex: 1,
-		justifyContent: "center",
-	},
-	chatHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 4,
-	},
-	nameContainer: {
-		flexDirection: "row",
-		alignItems: "center",
-		flex: 1,
-	},
-	chatName: {
-		fontSize: 16,
-		fontWeight: "600",
-		marginRight: 8,
-	},
-	memberCount: {
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	memberText: {
-		fontSize: 12,
-		marginLeft: 2,
-	},
-	timeStamp: {
-		fontSize: 12,
-	},
-	messageRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-	},
-	lastMessage: {
-		fontSize: 14,
-		flex: 1,
-		marginRight: 8,
-	},
-	paymentInfo: {
-		flex: 1,
-		marginRight: 8,
-	},
-	paymentRow: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		marginBottom: 4,
-	},
-	paymentLabel: {
-		fontSize: 14,
-		marginRight: 8,
-	},
-	amountBadge: {
+	totalUnreadBadge: {
+		borderRadius: 12,
 		paddingHorizontal: 8,
 		paddingVertical: 4,
-		borderRadius: 12,
+		minWidth: 24,
+		alignItems: 'center',
 	},
-	amountText: {
-		color: '#fff',
-		fontSize: 14,
+	totalUnreadCount: {
+		color: 'white',
+		fontSize: 12,
 		fontWeight: '600',
 	},
-	dueDateRow: {
+	conversationsList: {
+		flex: 1,
+	},
+	conversationsContent: {
+		paddingVertical: 8,
+	},
+	emptyList: {
+		flex: 1,
+	},
+	conversationItem: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		paddingHorizontal: 16,
+		paddingVertical: 12,
+		marginHorizontal: 16,
+		marginVertical: 4,
+		borderRadius: 12,
 	},
-	dueDateLabel: {
-		fontSize: 12,
-		marginRight: 4,
+	avatarContainer: {
+		position: 'relative',
+		marginRight: 12,
 	},
-	dueDateText: {
-		fontSize: 12,
-		fontWeight: '500',
+	avatar: {
+		width: 48,
+		height: 48,
+		borderRadius: 24,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	avatarText: {
+		color: 'white',
+		fontSize: 18,
+		fontWeight: '600',
 	},
 	unreadBadge: {
+		position: 'absolute',
+		top: -2,
+		right: -2,
+		borderRadius: 10,
 		minWidth: 20,
 		height: 20,
-		borderRadius: 10,
-		backgroundColor: "#25D366",
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: 6,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	unreadCount: {
-		color: "#fff",
-		fontSize: 12,
-		fontWeight: "600",
-	},
-	memberCountBadge: {
-		position: 'absolute',
-		bottom: 0,
-		right: 0,
-		width: 20,
-		height: 20,
-		borderRadius: 10,
-		justifyContent: 'center',
-		alignItems: 'center',
-		borderWidth: 2,
-		borderColor: 'white',
-		zIndex: 3,
-	},
-	memberCountText: {
-		color: '#fff',
+		color: 'white',
 		fontSize: 10,
 		fontWeight: '600',
 	},
-	emptyChatList: {
+	conversationInfo: {
 		flex: 1,
+	},
+	conversationHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 4,
+	},
+	conversationName: {
+		fontSize: 16,
+		fontWeight: '600',
+	},
+	messageTime: {
+		fontSize: 12,
+	},
+	conversationFooter: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	lastMessage: {
+		flex: 1,
+		fontSize: 14,
+		marginRight: 8,
+	},
+	unreadDot: {
+		width: 8,
+		height: 8,
+		borderRadius: 4,
 	},
 }); 

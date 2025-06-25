@@ -1,92 +1,89 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { GroupDetailsSheetRoot } from '@/app/components/GroupDetailsSheetRoot';
 import { GroupDetailsProvider } from '@/app/context/GroupDetailsContext';
-import { Colors } from '@/constants/Colors';
+import { ThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { UserInactivityProvider } from "@/context/UserInactivityContext";
 import { SocketProvider } from '@/context/useSockectContext';
-import { useTheme } from '@/hooks/useTheme';
 import { AmountFilterSheet, DateFilterSheet } from './(tabs)/groups/components/FilterSheets';
 import { FilterSheetProvider, useFilterSheet } from './context/FilterSheetContext';
 
 function RootLayoutContent() {
-	const { theme } = useTheme();
-	const colorScheme = theme.isDark ? 'dark' : 'light';
-	const appColors = Colors[colorScheme];
+	const theme = useAppTheme();
 	const { isAmountSheetVisible, isDateSheetVisible, hideAmountSheet, hideDateSheet } = useFilterSheet();
 	const [loaded] = useFonts({
 		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
 	});
 
+	console.log("🔍 RootLayoutContent rendering, loaded:", loaded, "isDark:", theme.isDark);
+
 	if (!loaded) {
 		// Async font loading only occurs in development.
-		return null;
+		return (
+			<View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }}>
+				<Text style={{ color: theme.text, fontSize: 18 }}>Loading...</Text>
+			</View>
+		);
 	}
 
 	return (
-		<>
+		<View style={{ flex: 1, backgroundColor: theme.background }}>
 			<SocketProvider>
-			<Stack
-				screenOptions={{
-					headerStyle: {
-						backgroundColor: appColors.card,
-					},
-					headerTintColor: appColors.text,
-				}}
-			>
-				<Stack.Screen name="lock-Screen" options={{ headerShown: false }} />
-				<Stack.Screen name="auth" options={{ headerShown: false }} />
-				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-				<Stack.Screen name="+not-found" />
-				<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
-				<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
-				<Stack.Screen name="contacts" options={{ headerShown: false }} />
-			</Stack>
-			<StatusBar style="auto" />
-			<AmountFilterSheet
-				colorScheme={colorScheme}
-				isAmountSheetVisible={isAmountSheetVisible}
-				isDateSheetVisible={isDateSheetVisible}
-				onAmountSheetClose={hideAmountSheet}
-				onDateSheetClose={hideDateSheet}
-			/>
-			<DateFilterSheet
-				colorScheme={colorScheme}
-				isAmountSheetVisible={isAmountSheetVisible}
-				isDateSheetVisible={isDateSheetVisible}
-				onAmountSheetClose={hideAmountSheet}
-				onDateSheetClose={hideDateSheet}
-			/>
-			<GroupDetailsSheetRoot />
+				<Stack
+					screenOptions={{
+						headerStyle: {
+							backgroundColor: theme.card,
+						},
+						headerTintColor: theme.text,
+					}}
+				>
+					<Stack.Screen name="lock-Screen" options={{ headerShown: false }} />
+					<Stack.Screen name="auth" options={{ headerShown: false }} />
+					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+					<Stack.Screen name="+not-found" />
+					<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
+					<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
+					<Stack.Screen name="contacts" options={{ headerShown: false }} />
+				</Stack>
+				<StatusBar style="auto" />
+				<AmountFilterSheet
+					isAmountSheetVisible={isAmountSheetVisible}
+					onAmountSheetClose={hideAmountSheet}
+				/>
+				<DateFilterSheet
+					isDateSheetVisible={isDateSheetVisible}
+					onDateSheetClose={hideDateSheet}
+				/>
+				<GroupDetailsSheetRoot />
 			</SocketProvider>
-		</>
+		</View>
 	);
 }
 
 export default function RootLayout() {
-	const { theme } = useTheme();
-	const colorScheme = theme.isDark ? 'dark' : 'light';
-
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
-			<UserInactivityProvider>
-				<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-					<BottomSheetModalProvider>
-						<FilterSheetProvider>
+			<ThemeProvider>
+				<NavigationThemeProvider value={DefaultTheme}>
+					<FilterSheetProvider>
+						<UserInactivityProvider>
 							<GroupDetailsProvider>
-								<RootLayoutContent />
+								<BottomSheetModalProvider>
+									<RootLayoutContent />
+								</BottomSheetModalProvider>
 							</GroupDetailsProvider>
-						</FilterSheetProvider>
-					</BottomSheetModalProvider>
-				</ThemeProvider>
-			</UserInactivityProvider>
+						</UserInactivityProvider>
+					</FilterSheetProvider>
+				</NavigationThemeProvider>
+			</ThemeProvider>
 		</GestureHandlerRootView>
 	);
 }

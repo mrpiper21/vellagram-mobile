@@ -1,10 +1,12 @@
-import { Colors } from "@/constants/Colors";
+import { useAppTheme } from "@/context/ThemeContext";
 import { useSocketContext } from "@/context/useSockectContext";
-import { useTheme } from "@/hooks/useTheme";
+import { useSocketChat } from '@/hooks/useSocketChat';
+import { useActiveConversation, useChatActions, useConversation, useConversationMessages } from '@/store/useChatStore';
+import { useUserStore } from '@/store/useUserStore';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import React, { useRef, useState } from "react";
-import { Animated, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import { GroupDetailsSheet } from "./components/GroupDetailsSheet";
 import { Header } from "./components/Header";
@@ -17,20 +19,49 @@ const dummyMessages = [
     { id: "4", text: "Thanks for the reminder!", sender: "me", time: "09:03" },
 ];
 
-export default function ConversationDetail() {
+export default function ConversationScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { theme } = useTheme();
-    const colorScheme = theme.isDark ? "dark" : "light";
-    const appColors = Colors[colorScheme];
+    const theme = useAppTheme();
+    const {user} = useUserStore((state) => state);
 
-    const [messages, setMessages] = useState(dummyMessages);
-    const [input, setInput] = useState("");
+    // Chat store hooks
+    const messages = useConversationMessages(id);
+    const conversation = useConversation(id);
+    const activeConversationId = useActiveConversation();
+    const { addMessage, markConversationAsRead, setActiveConversation } = useChatActions();
+
+    // Socket integration
+    const { sendMessage: sendSocketMessage, isConnected } = useSocketChat();
+
+    const [newMessage, setNewMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const flatListRef = useRef<FlatList>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
-    const flatListRef = useRef<FlatList>(null);
     const menuAnimation = useRef(new Animated.Value(0)).current;
     const detailsAnimation = useRef(new Animated.Value(0)).current;
     const socket = useSocketContext()
+
+    // Memoize random elements to prevent infinite re-renders
+    const randomElements = useMemo(() => {
+        return [...Array(12)].map((_, index) => ({
+            id: index,
+            width: 20 + (index * 2) % 40,
+            height: 20 + (index * 3) % 40,
+            borderRadius: 10 + (index * 2) % 20,
+            top: (index * 7) % 100,
+            left: (index * 11) % 100,
+            rotate: (index * 30) % 360,
+        }));
+    }, []);
+
+    // Set active conversation when component mounts
+    useEffect(() => {
+        if (id) {
+            setActiveConversation(id);
+            markConversationAsRead(id);
+        }
+    }, [id, setActiveConversation, markConversationAsRead]);
 
     const toggleMenu = () => {
         const toValue = showMenu ? 0 : 1;
@@ -69,15 +100,34 @@ export default function ConversationDetail() {
         }
     };
 
-    const handleSend = () => {
-        if (input.trim()) {
-            socket.socket?.emit("message", input)
-            setMessages([
-                ...messages,
-                { id: Date.now().toString(), text: input, sender: "me", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
-            ]);
-            setInput("");
-            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || !user?.id || !id) return;
+
+        setIsSending(true);
+        
+        try {
+            const otherParticipant = conversation?.participants?.find(p => p !== user.id);
+            if (!otherParticipant) {
+                Alert.alert('Error', 'Cannot determine recipient');
+                return;
+            }
+
+            // Add message to local store first (optimistic update)
+            addMessage({
+                conversationId: id,
+                senderId: user.id,
+                content: newMessage.trim(),
+                type: 'text'
+            });
+
+            // Send via socket
+            sendSocketMessage(otherParticipant, newMessage.trim(), 'text');
+            
+            setNewMessage('');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to send message');
+        } finally {
+            setIsSending(false);
         }
     };
 
@@ -92,38 +142,72 @@ export default function ConversationDetail() {
         avatar: "G",
     };
 
-    const renderMessage = ({ item }: { item: typeof dummyMessages[0] }) => (
-        <View
-            style={[
-                styles.messageRow,
-                { justifyContent: item.sender === "me" ? "flex-end" : "flex-start" }
-            ]}
-        >
-            <View
-                style={[
-                    styles.bubble,
+    const renderMessage = ({ item }: { item: any }) => {
+        const isOwnMessage = item?.senderId === user?.id;
+        
+        return (
+            <View style={[
+                styles.messageContainer,
+                isOwnMessage ? styles.ownMessage : styles.otherMessage
+            ]}>
+                <View style={[
+                    styles.messageBubble,
                     {
-                        backgroundColor: item.sender === "me" ? appColors.tint : appColors.card,
-                        alignSelf: item.sender === "me" ? "flex-end" : "flex-start",
+                        backgroundColor: isOwnMessage ? theme?.tint : theme?.card,
+                        borderColor: theme.border
                     }
-                ]}
-            >
-                <Text style={{
-                    color: item.sender === "me" ? "#fff" : appColors.text,
-                    fontSize: 15,
-                }}>
-                    {item.text}
-                </Text>
-                <Text style={styles.timeText}>{item.time}</Text>
+                ]}>
+                    <Text style={[
+                        styles.messageText,
+                        { color: isOwnMessage ? 'white' : theme.text }
+                    ]}>
+                        {item?.content}
+                    </Text>
+                    <View style={styles.messageFooter}>
+                        <Text style={[
+                            styles.messageTime,
+                            { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.icon }
+                        ]}>
+                            {new Date(item?.timestamp).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                            })}
+                        </Text>
+                        {isOwnMessage && (
+                            <Ionicons 
+                                name={
+                                    item?.status === 'sending' ? 'time' :
+                                    item?.status === 'sent' ? 'checkmark' :
+                                    item?.status === 'delivered' ? 'checkmark-done' :
+                                    item?.status === 'read' ? 'checkmark-done' :
+                                    'close'
+                                } 
+                                size={14} 
+                                color={isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.icon} 
+                                style={styles.statusIcon}
+                            />
+                        )}
+                    </View>
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
+
+    if (!conversation) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <Text style={[styles.errorText, { color: theme.text }]}>
+                    Conversation not found
+                </Text>
+            </View>
+        );
+    }
 
     return (
-        <View style={[styles.container, { backgroundColor: appColors.background }]}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <Header
-                groupName={group.name}
-                groupAvatar={group.avatar}
+                groupName={group?.name}
+                groupAvatar={group?.avatar}
                 onMenuPress={toggleMenu}
             />
 
@@ -142,15 +226,15 @@ export default function ConversationDetail() {
             <GroupDetailsSheet
                 visible={showDetails}
                 onClose={toggleDetails}
-                groupName={group.name}
-                groupAvatar={group.avatar}
+                groupName={group?.name}
+                groupAvatar={group?.avatar}
                 animation={detailsAnimation}
                 onChatPress={handleChatPress}
             />
 
             {/* Messages */}
-            <View style={[styles.messagesContainer, { backgroundColor: appColors.background }]}>
-                <View style={[styles.backgroundPattern, { backgroundColor: appColors.background }]}>
+            <View style={[styles.messagesContainer, { backgroundColor: theme.background }]}>
+                <View style={[styles.backgroundPattern, { backgroundColor: theme.background }]}>
                     <View style={styles.patternGrid}>
                         {[...Array(6)].map((_, rowIndex) => (
                             <View key={rowIndex} style={styles.patternRow}>
@@ -159,7 +243,7 @@ export default function ConversationDetail() {
                                         styles.patternDot,
                                         {
                                             opacity: 0.1,
-                                            backgroundColor: appColors.tint,
+                                            backgroundColor: theme.tint,
                                             transform: [
                                                 { scale: (rowIndex + colIndex) % 2 === 0 ? 1 : 0.8 }
                                             ]
@@ -170,21 +254,21 @@ export default function ConversationDetail() {
                         ))}
                     </View>
                     <View style={styles.randomElements}>
-                        {[...Array(12)].map((_, index) => (
+                        {randomElements.map((element) => (
                             <View
-                                key={index}
+                                key={element.id}
                                 style={[
                                     styles.randomElement,
                                     {
-                                        backgroundColor: appColors.tint,
+                                        backgroundColor: theme.tint,
                                         opacity: 0.03,
-                                        width: Math.random() * 40 + 20,
-                                        height: Math.random() * 40 + 20,
-                                        borderRadius: Math.random() * 20,
-                                        top: `${Math.random() * 100}%`,
-                                        left: `${Math.random() * 100}%`,
+                                        width: element.width,
+                                        height: element.height,
+                                        borderRadius: element.borderRadius,
+                                        top: `${element.top}%`,
+                                        left: `${element.left}%`,
                                         transform: [
-                                            { rotate: `${Math.random() * 360}deg` }
+                                            { rotate: `${element.rotate}deg` }
                                         ]
                                     }
                                 ]}
@@ -195,7 +279,7 @@ export default function ConversationDetail() {
                 <FlatList
                     ref={flatListRef}
                     data={messages}
-                    keyExtractor={item => item.id}
+                    keyExtractor={(item) => item?.id || `msg-${item?.timestamp || Date.now()}`}
                     renderItem={renderMessage}
                     contentContainerStyle={styles.messagesList}
                     showsVerticalScrollIndicator={false}
@@ -209,15 +293,15 @@ export default function ConversationDetail() {
                 keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
                 style={styles.keyboardAvoid}
             >
-                <View style={[styles.inputBar, { backgroundColor: appColors.card }]}>
+                <View style={[styles.inputBar, { backgroundColor: theme.card }]}>
                     <View style={[styles.inputContainer, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
                         <TextInput
-                            style={[styles.input, { color: appColors.text }]}
+                            style={[styles.input, { color: theme.text }]}
                             placeholder="Type a message"
-                            placeholderTextColor={appColors.icon}
-                            value={input}
-                            onChangeText={setInput}
-                            onSubmitEditing={handleSend}
+                            placeholderTextColor={theme.icon}
+                            value={newMessage}
+                            onChangeText={setNewMessage}
+                            onSubmitEditing={handleSendMessage}
                             returnKeyType="send"
                             multiline
                             maxLength={500}
@@ -225,20 +309,21 @@ export default function ConversationDetail() {
                         />
                     </View>
                     <TouchableOpacity
-                        onPress={handleSend}
+                        onPress={handleSendMessage}
                         style={[
                             styles.sendButton,
                             {
-                                backgroundColor: input.trim() ? appColors.tint : appColors.card,
-                                borderColor: appColors.border
+                                backgroundColor: newMessage.trim() && isConnected ? theme.tint : theme.card,
+                                borderColor: theme.border,
+                                opacity: isSending ? 0.6 : 1
                             }
                         ]}
-                        disabled={!input.trim()}
+                        disabled={!newMessage.trim() || isSending || !isConnected}
                     >
                         <Ionicons
-                            name="send"
+                            name={isSending ? "time" : "send"}
                             size={20}
-                            color={input.trim() ? "white" : appColors.icon}
+                            color={newMessage.trim() ? "white" : theme.icon}
                         />
                     </TouchableOpacity>
                 </View>
@@ -289,31 +374,37 @@ const styles = StyleSheet.create({
     messagesList: {
         padding: 16,
     },
-    messageRow: {
-        flexDirection: "row",
-        marginBottom: 10,
-    },
-    bubble: {
-        maxWidth: "80%",
-        borderRadius: 18,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        marginHorizontal: 4,
+    messageContainer: {
         marginVertical: 4,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-        elevation: 2,
     },
-    timeText: {
-        fontSize: 11,
-        color: "#8E8E93",
+    ownMessage: {
+        alignItems: 'flex-end',
+    },
+    otherMessage: {
+        alignItems: 'flex-start',
+    },
+    messageBubble: {
+        maxWidth: '80%',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+    },
+    messageText: {
+        fontSize: 16,
+        lineHeight: 20,
+    },
+    messageFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
         marginTop: 4,
-        alignSelf: "flex-end",
+    },
+    messageTime: {
+        fontSize: 12,
+    },
+    statusIcon: {
+        marginLeft: 4,
     },
     keyboardAvoid: {
         width: '100%',
@@ -347,5 +438,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    errorText: {
+        textAlign: 'center',
+        marginTop: 50,
+        fontSize: 16,
     },
 });
