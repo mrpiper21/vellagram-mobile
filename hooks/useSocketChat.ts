@@ -1,10 +1,10 @@
-import { useSocketContext } from '@/context/useSockectContext';
+import { ruseSocketContext } from '@/context/useSockectContext';
 import { useChatStore } from '@/store/useChatStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useEffect, useRef } from 'react';
 
 export const useSocketChat = () => {
-    const { socket } = useSocketContext();
+    const { socket } = ruseSocketContext();
     const { addSocketMessage } = useChatStore();
     const { user } = useUserStore();
     const isInitialized = useRef(false);

@@ -12,7 +12,6 @@ import { GroupDetailsSheetRoot } from '@/app/components/GroupDetailsSheetRoot';
 import { GroupDetailsProvider } from '@/app/context/GroupDetailsContext';
 import { ThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { UserInactivityProvider } from "@/context/UserInactivityContext";
-import { SocketProvider } from '@/context/useSockectContext';
 import { AmountFilterSheet, DateFilterSheet } from './(tabs)/groups/components/FilterSheets';
 import { FilterSheetProvider, useFilterSheet } from './context/FilterSheetContext';
 
@@ -36,34 +35,32 @@ function RootLayoutContent() {
 
 	return (
 		<View style={{ flex: 1, backgroundColor: theme.background }}>
-			<SocketProvider>
-				<Stack
-					screenOptions={{
-						headerStyle: {
-							backgroundColor: theme.card,
-						},
-						headerTintColor: theme.text,
-					}}
-				>
-					<Stack.Screen name="lock-Screen" options={{ headerShown: false }} />
-					<Stack.Screen name="auth" options={{ headerShown: false }} />
-					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-					<Stack.Screen name="+not-found" />
-					<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
-					<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
-					<Stack.Screen name="contacts" options={{ headerShown: false }} />
-				</Stack>
-				<StatusBar style="auto" />
-				<AmountFilterSheet
-					isAmountSheetVisible={isAmountSheetVisible}
-					onAmountSheetClose={hideAmountSheet}
-				/>
-				<DateFilterSheet
-					isDateSheetVisible={isDateSheetVisible}
-					onDateSheetClose={hideDateSheet}
-				/>
-				<GroupDetailsSheetRoot />
-			</SocketProvider>
+			<Stack
+				screenOptions={{
+					headerStyle: {
+						backgroundColor: theme.card,
+					},
+					headerTintColor: theme.text,
+				}}
+			>
+				<Stack.Screen name="lock-Screen" options={{ headerShown: false }} />
+				<Stack.Screen name="auth" options={{ headerShown: false }} />
+				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+				<Stack.Screen name="+not-found" />
+				<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
+				<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
+				<Stack.Screen name="contacts" options={{ headerShown: false }} />
+			</Stack>
+			<StatusBar style="auto" />
+			<AmountFilterSheet
+				isAmountSheetVisible={isAmountSheetVisible}
+				onAmountSheetClose={hideAmountSheet}
+			/>
+			<DateFilterSheet
+				isDateSheetVisible={isDateSheetVisible}
+				onDateSheetClose={hideDateSheet}
+			/>
+			<GroupDetailsSheetRoot />
 		</View>
 	);
 }

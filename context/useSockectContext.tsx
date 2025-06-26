@@ -18,7 +18,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const user = useUser();
   
     useEffect(() => {
-      socketRef.current = io("http://192.168.86.184:3000", {
+      socketRef.current = io("http://192.168.86.184:2000", {
         path: "/socket.io/",
         transports: ["websocket", "polling"],
         autoConnect: true,
@@ -55,10 +55,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export const useSocketContext = () => {
+export const ruseSocketContext = () => {
   const context = useContext(SocketContext);
   if (context === undefined) {
-    throw new Error('useSocketContext must be used within a SocketProvider');
+    throw new Error('useSocketContext! must be used within a SocketProvider');
   }
   return context;
 };

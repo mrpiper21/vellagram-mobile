@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { useUserStore } from './useUserStore';
+import { useShallow } from 'zustand/react/shallow';
+// import { useUserStore } from './useUserStore'; // Uncomment and adjust path as needed
 
 export interface Message {
     id: string;
-    conversationId: string;
+    conversationId?: string;
     senderId: string;
+    recipientId: string; // For direct messages
     content: string;
     type: 'text' | 'image' | 'file' | 'audio' | 'video';
     timestamp: number;
@@ -33,45 +35,35 @@ export interface Conversation {
     isGroup: boolean;
     groupName?: string;
     groupAvatar?: string;
+    groupAdminId?: string; // For group admin (backend: Group.admin)
     createdAt: number;
     updatedAt: number;
 }
 
 export interface ChatState {
-    // State - Using hash maps for efficient lookups
     conversations: { [conversationId: string]: Conversation };
-    messages: { [conversationId: string]: Message[] };
+    messages: { [recipientId: string]: Message[] };
     activeConversationId: string | null;
     isLoading: boolean;
     isSending: boolean;
-    
-    // Actions
     addMessage: (message: Omit<Message, 'id' | 'timestamp' | 'status'>) => void;
     addSocketMessage: (socketMessage: { senderId: string; recipientId: string; message: string; type?: string }) => void;
     updateMessageStatus: (messageId: string, status: Message['status']) => void;
     markMessageAsRead: (messageId: string) => void;
     markConversationAsRead: (conversationId: string) => void;
-    
-    // Conversation actions
     createConversation: (conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt' | 'lastMessageTime' | 'unreadCount'>) => void;
     updateConversation: (conversationId: string, updates: Partial<Conversation>) => void;
     deleteConversation: (conversationId: string) => void;
     setActiveConversation: (conversationId: string | null) => void;
-    
-    // Message actions
     loadMessages: (conversationId: string, messages: Message[]) => void;
     clearMessages: (conversationId: string) => void;
     deleteMessage: (messageId: string) => void;
-    
-    // Utility actions
     getConversation: (conversationId: string) => Conversation | undefined;
     getConversationsList: () => Conversation[];
     getMessages: (conversationId: string) => Message[];
     getUnreadCount: (conversationId: string) => number;
     getTotalUnreadCount: () => number;
     getConversationId: (participant1: string, participant2: string) => string;
-    
-    // Clear all data
     clearAllData: () => void;
 }
 
@@ -91,25 +83,25 @@ export const useChatStore = create<ChatState>()(
                     timestamp: Date.now(),
                     status: 'sending'
                 };
-
                 set((state) => {
-                    const conversationId = message.conversationId;
+                    const conversationId = message.recipientId;
                     const existingMessages = state.messages[conversationId] || [];
+                    if (existingMessages.some(m => m.id === message.id)) {
+                        return {};
+                    }
                     const updatedMessages = [...existingMessages, message];
-                    
-                    // Update conversation
                     const conversation = state.conversations[conversationId];
                     const updatedConversation: Conversation = conversation ? {
                         ...conversation,
                         lastMessage: message,
                         lastMessageTime: message.timestamp,
-                        unreadCount: conversation.participants.includes(message.senderId) 
-                            ? conversation.unreadCount 
+                        unreadCount: conversation.participants.includes(message.senderId)
+                            ? conversation.unreadCount
                             : conversation.unreadCount + 1,
                         updatedAt: Date.now()
                     } : {
                         id: conversationId,
-                        participants: [message.senderId],
+                        participants: message.recipientId ? [message.senderId, message.recipientId] : [message.senderId],
                         lastMessage: message,
                         lastMessageTime: message.timestamp,
                         unreadCount: 0,
@@ -117,7 +109,6 @@ export const useChatStore = create<ChatState>()(
                         createdAt: Date.now(),
                         updatedAt: Date.now()
                     };
-
                     return {
                         messages: {
                             ...state.messages,
@@ -129,8 +120,6 @@ export const useChatStore = create<ChatState>()(
                         }
                     };
                 });
-
-                // Simulate message sending and update status
                 setTimeout(() => {
                     get().updateMessageStatus(message.id, 'sent');
                 }, 1000);
@@ -138,30 +127,22 @@ export const useChatStore = create<ChatState>()(
 
             addSocketMessage: (socketMessage) => {
                 const { senderId, recipientId, message: content, type = 'text' } = socketMessage;
-                
-                // Get current user ID from user store
-                const currentUserId = useUserStore.getState().user?.id;
-                
-                // Don't add our own messages from socket
-                if (senderId === currentUserId) return;
-
+                // const currentUserId = useUserStore.getState().user?.id; // Uncomment if you want to filter out self-messages
+                // if (senderId === currentUserId) return;
                 const conversationId = get().getConversationId(senderId, recipientId);
-                
                 const message: Message = {
                     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     conversationId,
                     senderId,
+                    recipientId,
                     content,
                     type: type as Message['type'],
                     timestamp: Date.now(),
                     status: 'delivered'
                 };
-
                 set((state) => {
                     const existingMessages = state.messages[conversationId] || [];
                     const updatedMessages = [...existingMessages, message];
-                    
-                    // Update or create conversation
                     const conversation = state.conversations[conversationId];
                     const updatedConversation: Conversation = conversation ? {
                         ...conversation,
@@ -179,7 +160,6 @@ export const useChatStore = create<ChatState>()(
                         createdAt: Date.now(),
                         updatedAt: Date.now()
                     };
-
                     return {
                         messages: {
                             ...state.messages,
@@ -196,13 +176,11 @@ export const useChatStore = create<ChatState>()(
             updateMessageStatus: (messageId, status) => {
                 set((state) => {
                     const updatedMessages = { ...state.messages };
-                    
                     Object.keys(updatedMessages).forEach(conversationId => {
                         updatedMessages[conversationId] = updatedMessages[conversationId].map(msg =>
                             msg.id === messageId ? { ...msg, status } : msg
                         );
                     });
-
                     return { messages: updatedMessages };
                 });
             },
@@ -210,13 +188,11 @@ export const useChatStore = create<ChatState>()(
             markMessageAsRead: (messageId) => {
                 set((state) => {
                     const updatedMessages = { ...state.messages };
-                    
                     Object.keys(updatedMessages).forEach(conversationId => {
                         updatedMessages[conversationId] = updatedMessages[conversationId].map(msg =>
                             msg.id === messageId ? { ...msg, status: 'read' } : msg
                         );
                     });
-
                     return { messages: updatedMessages };
                 });
             },
@@ -224,27 +200,15 @@ export const useChatStore = create<ChatState>()(
             markConversationAsRead: (conversationId) => {
                 set((state) => {
                     const conversation = state.conversations[conversationId];
-                    if (!conversation) return state;
-
-                    const updatedConversations = {
-                        ...state.conversations,
-                        [conversationId]: {
-                            ...conversation,
-                            unreadCount: 0
-                        }
-                    };
-
-                    const updatedMessages = { ...state.messages };
-                    if (updatedMessages[conversationId]) {
-                        updatedMessages[conversationId] = updatedMessages[conversationId].map(msg => ({
-                            ...msg,
-                            status: 'read'
-                        }));
-                    }
-
+                    if (!conversation || conversation.unreadCount === 0) return state;
                     return {
-                        conversations: updatedConversations,
-                        messages: updatedMessages
+                        conversations: {
+                            ...state.conversations,
+                            [conversationId]: {
+                                ...conversation,
+                                unreadCount: 0
+                            }
+                        }
                     };
                 });
             },
@@ -258,7 +222,6 @@ export const useChatStore = create<ChatState>()(
                     createdAt: Date.now(),
                     updatedAt: Date.now()
                 };
-
                 set((state) => ({
                     conversations: {
                         ...state.conversations,
@@ -275,7 +238,6 @@ export const useChatStore = create<ChatState>()(
                 set((state) => {
                     const conversation = state.conversations[conversationId];
                     if (!conversation) return state;
-
                     return {
                         conversations: {
                             ...state.conversations,
@@ -293,10 +255,8 @@ export const useChatStore = create<ChatState>()(
                 set((state) => {
                     const updatedMessages = { ...state.messages };
                     delete updatedMessages[conversationId];
-
                     const updatedConversations = { ...state.conversations };
                     delete updatedConversations[conversationId];
-
                     return {
                         conversations: updatedConversations,
                         messages: updatedMessages,
@@ -322,7 +282,6 @@ export const useChatStore = create<ChatState>()(
                 set((state) => {
                     const updatedMessages = { ...state.messages };
                     delete updatedMessages[conversationId];
-
                     return { messages: updatedMessages };
                 });
             },
@@ -330,13 +289,11 @@ export const useChatStore = create<ChatState>()(
             deleteMessage: (messageId) => {
                 set((state) => {
                     const updatedMessages = { ...state.messages };
-                    
                     Object.keys(updatedMessages).forEach(conversationId => {
                         updatedMessages[conversationId] = updatedMessages[conversationId].filter(
                             msg => msg.id !== messageId
                         );
                     });
-
                     return { messages: updatedMessages };
                 });
             },
@@ -350,12 +307,11 @@ export const useChatStore = create<ChatState>()(
             getConversationsList: () => {
                 const conversations = get().conversations;
                 return Object.values(conversations)
-                    .filter(conv => conv && typeof conv === 'object') // Filter out invalid conversations
+                    .filter(conv => conv && typeof conv === 'object')
                     .sort((a, b) => {
-                        // Handle cases where lastMessageTime might be undefined
                         const timeA = a?.lastMessageTime || a?.createdAt || 0;
                         const timeB = b?.lastMessageTime || b?.createdAt || 0;
-                        return timeB - timeA; // Sort by most recent first
+                        return timeB - timeA;
                     });
             },
 
@@ -379,7 +335,6 @@ export const useChatStore = create<ChatState>()(
             },
 
             getConversationId: (participant1: string, participant2: string) => {
-                // Create a consistent conversation ID regardless of sender/recipient order
                 const sortedParticipants = [participant1, participant2].sort();
                 return `conv-${sortedParticipants[0]}-${sortedParticipants[1]}`;
             },
@@ -406,14 +361,8 @@ export const useChatStore = create<ChatState>()(
     )
 );
 
-export const useConversations = () => useChatStore((state) => {
-    const conversations = state.conversations;
-    // Return the conversations object directly, let the component handle the transformation
-    return conversations;
-});
-
+export const useConversations = () => useChatStore((state) => state.conversations);
 export const useActiveConversation = () => useChatStore((state) => state.activeConversationId);
-
 export const useChatActions = () => useChatStore((state) => ({
     addMessage: state.addMessage,
     addSocketMessage: state.addSocketMessage,
@@ -429,27 +378,11 @@ export const useChatActions = () => useChatStore((state) => ({
     deleteMessage: state.deleteMessage,
     clearAllData: state.clearAllData,
 }));
-
-export const useConversationMessages = (conversationId: string) => 
-    useChatStore((state) => {
-        if (!conversationId) return [];
-        const messages = state.messages[conversationId];
-        return Array.isArray(messages) ? messages : [];
-    });
-
-export const useConversation = (conversationId: string) => 
-    useChatStore((state) => {
-        if (!conversationId) return undefined;
-        const conversation = state.conversations[conversationId];
-        return conversation && typeof conversation === 'object' ? conversation : undefined;
-    });
-
-export const useUnreadCount = (conversationId: string) => 
-    useChatStore((state) => {
-        if (!conversationId) return 0;
-        const conversation = state.conversations[conversationId];
-        return conversation?.unreadCount || 0;
-    });
-
-export const useTotalUnreadCount = () => 
-    useChatStore((state) => state.getTotalUnreadCount()); 
+export const useConversationMessages = (conversationId: string) =>
+    useChatStore(useShallow(state => state.messages[conversationId] || []));
+export const useConversation = (conversationId: string) =>
+    useChatStore(useShallow(state => (conversationId ? state.conversations[conversationId] : null)));
+export const useUnreadCount = (conversationId: string) =>
+    useChatStore(state => (conversationId ? state.conversations[conversationId]?.unreadCount || 0 : 0));
+export const useTotalUnreadCount = () =>
+    useChatStore(state => state.getTotalUnreadCount()); 

@@ -3,14 +3,13 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useSocketChat } from '@/hooks/useSocketChat';
 import { useConversations, useTotalUnreadCount } from '@/store/useChatStore';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 function ChatScreenContent() {
 	const theme = useAppTheme();
-
-	// Chat store hooks with error handling
 	const conversationsObject = useConversations();
 	const totalUnreadCount = useTotalUnreadCount();
 	
@@ -68,35 +67,35 @@ function ChatScreenContent() {
 
 			return (
 				<TouchableOpacity
-					style={[styles.conversationItem, { backgroundColor: theme.card }]}
+					style={[styles.conversationItem, { backgroundColor: theme.card, borderColor: theme.border}]}
 					onPress={() => {
 						if (item?.id) {
 							router.push(`/conversation/${item.id}`);
 						}
 					}}
+					activeOpacity={0.85}
 				>
 					<View style={styles.avatarContainer}>
-						<View style={[styles.avatar, { backgroundColor: theme.tint }]}>
+						<View style={[styles.avatar, { backgroundColor: theme.tint }] }>
 							<Text style={styles.avatarText}>
 								{item?.isGroup ? 'G' : item?.participants?.[0]?.charAt(0)?.toUpperCase() || 'U'}
 							</Text>
+							{isUnread && (
+								<View style={[styles.unreadBadge, { backgroundColor: theme.tint }] }>
+									<Text style={styles.unreadCount}>
+										{(item?.unreadCount || 0) > 99 ? '99+' : (item?.unreadCount || 0)}
+									</Text>
+								</View>
+							)}
 						</View>
-						{isUnread && (
-							<View style={[styles.unreadBadge, { backgroundColor: theme.tint }]}>
-								<Text style={styles.unreadCount}>
-									{(item?.unreadCount || 0) > 99 ? '99+' : (item?.unreadCount || 0)}
-								</Text>
-							</View>
-						)}
 					</View>
-					
 					<View style={styles.conversationInfo}>
 						<View style={styles.conversationHeader}>
-							<Text style={[styles.conversationName, { color: theme.text }]}>
+							<Text style={styles.conversationName} numberOfLines={1}>
 								{item?.isGroup ? item?.groupName : 'Chat'}
 							</Text>
 							{lastMessage && (
-								<Text style={[styles.messageTime, { color: theme.icon }]}>
+								<Text style={styles.messageTime}>
 									{new Date(lastMessage?.timestamp || Date.now()).toLocaleTimeString([], { 
 										hour: '2-digit', 
 										minute: '2-digit' 
@@ -104,13 +103,9 @@ function ChatScreenContent() {
 								</Text>
 							)}
 						</View>
-						
 						<View style={styles.conversationFooter}>
 							<Text 
-								style={[
-									styles.lastMessage, 
-									{ color: isUnread ? theme.text : theme.icon }
-								]}
+								style={[styles.lastMessage, isUnread ? styles.lastMessageUnread : styles.lastMessageRead]}
 								numberOfLines={1}
 							>
 								{lastMessage?.content || 'No messages yet'}
@@ -134,21 +129,28 @@ function ChatScreenContent() {
 
 	return (
 		<View style={[styles.container, { backgroundColor: theme.background }]}>
-			{/* Header */}
-			<View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+			<View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border, shadowColor: theme.border, shadowOffset: { height: 2, width: 0 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }]}>
 				<Text style={[styles.headerTitle, { color: theme.text }]}>
 					Chats
 				</Text>
-				{safeTotalUnreadCount > 0 && (
-					<View style={[styles.totalUnreadBadge, { backgroundColor: theme.tint }]}>
-						<Text style={styles.totalUnreadCount}>
-							{safeTotalUnreadCount > 99 ? '99+' : safeTotalUnreadCount}
-						</Text>
-					</View>
-				)}
+				<View style={styles.headerRight}>
+					{safeTotalUnreadCount > 0 && (
+						<View style={[styles.totalUnreadBadge, { backgroundColor: theme.tint }]}>
+							<Text style={styles.totalUnreadCount}>
+								{safeTotalUnreadCount > 99 ? '99+' : safeTotalUnreadCount}
+							</Text>
+						</View>
+					)}
+					<TouchableOpacity
+						style={[styles.headerPlusBtn, { backgroundColor: theme.tint }]}
+						onPress={() => router.push('/contacts')}
+						activeOpacity={0.8}
+					>
+						<Ionicons name="add" size={24} color="#fff" />
+					</TouchableOpacity>
+				</View>
 			</View>
 
-			{/* Conversations List */}
 			<FlatList
 				data={safeConversations}
 				renderItem={renderConversation}
@@ -158,6 +160,14 @@ function ChatScreenContent() {
 				ListEmptyComponent={renderEmptyState}
 				showsVerticalScrollIndicator={false}
 			/>
+
+			<TouchableOpacity
+				style={[styles.fab, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
+				onPress={() => router.push('/contacts')}
+				activeOpacity={0.85}
+			>
+				<Ionicons name="add" size={28} color="#fff" />
+			</TouchableOpacity>
 		</View>
 	);
 }
@@ -179,12 +189,32 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		paddingHorizontal: 16,
-		paddingVertical: 12,
+		paddingVertical: 18,
+		paddingTop: 38,
 		borderBottomWidth: 1,
+		zIndex: 2,
 	},
 	headerTitle: {
 		fontSize: 24,
 		fontWeight: 'bold',
+	},
+	headerRight: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+	},
+	headerPlusBtn: {
+		marginLeft: 8,
+		width: 36,
+		height: 36,
+		borderRadius: 18,
+		alignItems: 'center',
+		justifyContent: 'center',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.12,
+		shadowRadius: 6,
+		elevation: 3,
 	},
 	totalUnreadBadge: {
 		borderRadius: 12,
@@ -203,6 +233,7 @@ const styles = StyleSheet.create({
 	},
 	conversationsContent: {
 		paddingVertical: 8,
+		paddingBottom: 100,
 	},
 	emptyList: {
 		flex: 1,
@@ -210,15 +241,14 @@ const styles = StyleSheet.create({
 	conversationItem: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		paddingHorizontal: 16,
-		paddingVertical: 12,
-		marginHorizontal: 16,
-		marginVertical: 4,
-		borderRadius: 12,
+		paddingVertical: 14,
+		borderBottomWidth: .5,
 	},
 	avatarContainer: {
-		position: 'relative',
+		marginLeft: 16,
 		marginRight: 12,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	avatar: {
 		width: 48,
@@ -226,6 +256,7 @@ const styles = StyleSheet.create({
 		borderRadius: 24,
 		alignItems: 'center',
 		justifyContent: 'center',
+		position: 'relative',
 	},
 	avatarText: {
 		color: 'white',
@@ -234,13 +265,15 @@ const styles = StyleSheet.create({
 	},
 	unreadBadge: {
 		position: 'absolute',
-		top: -2,
-		right: -2,
+		top: -6,
+		right: -6,
 		borderRadius: 10,
 		minWidth: 20,
 		height: 20,
 		alignItems: 'center',
 		justifyContent: 'center',
+		zIndex: 2,
+		paddingHorizontal: 4,
 	},
 	unreadCount: {
 		color: 'white',
@@ -249,19 +282,22 @@ const styles = StyleSheet.create({
 	},
 	conversationInfo: {
 		flex: 1,
+		justifyContent: 'center',
 	},
 	conversationHeader: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		marginBottom: 4,
+		marginBottom: 2,
 	},
 	conversationName: {
 		fontSize: 16,
-		fontWeight: '600',
+		fontWeight: '700',
+		color: '#222',
 	},
 	messageTime: {
 		fontSize: 12,
+		color: '#888',
 	},
 	conversationFooter: {
 		flexDirection: 'row',
@@ -273,9 +309,32 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		marginRight: 8,
 	},
+	lastMessageUnread: {
+		fontWeight: '600',
+		color: '#222',
+	},
+	lastMessageRead: {
+		fontWeight: '400',
+		color: '#888',
+	},
 	unreadDot: {
 		width: 8,
 		height: 8,
 		borderRadius: 4,
+	},
+	fab: {
+		position: 'absolute',
+		bottom: 32,
+		right: 24,
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		alignItems: 'center',
+		justifyContent: 'center',
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.18,
+		shadowRadius: 8,
+		elevation: 6,
+		zIndex: 10,
 	},
 }); 

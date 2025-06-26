@@ -34,6 +34,9 @@ interface ContactState {
     getContactByPhone: (phoneNumber: string) => ContactUser | undefined;
     isContactRegistered: (phoneNumber: string) => boolean;
     getUnregisteredContactsToCheck: () => string[];
+    
+    // Add this method to the store
+    updateContactsRegistration: (registeredPhones: string[]) => void;
 }
 
 const CONTACT_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
@@ -98,23 +101,23 @@ export const useContactStore = create<ContactState>()(
             checkContactRegistration: async (phoneNumber) => {
                 const { contacts, updateContact } = get();
                 const cleanPhone = phoneNumber.replace(/\D/g, '');
+                console.log("checking for ------", cleanPhone)
                 
                 // Check if we have a recent result
                 const existingContact = contacts.find(c => c.phoneNumber === cleanPhone);
                 
-                if (existingContact) {
-                    // If already registered, don't check again
-                    if (existingContact.isRegistered) {
-                        console.log("✅ Contact already registered, skipping:", cleanPhone);
-                        return true;
-                    }
+                // if (existingContact) {
+                //     if (existingContact.isRegistered) {
+                //         console.log("✅ Contact already registered, skipping:", cleanPhone);
+                //         return true;
+                //     }
                     
-                    // If checked recently (within 24 hours), don't check again
-                    if ((Date.now() - existingContact.lastChecked) < CONTACT_CHECK_INTERVAL) {
-                        console.log("✅ Using cached result for:", cleanPhone);
-                        return existingContact.isRegistered;
-                    }
-                }
+                //     // If checked recently (within 24 hours), don't check again
+                //     if ((Date.now() - existingContact.lastChecked) < CONTACT_CHECK_INTERVAL) {
+                //         console.log("✅ Using cached result for:", cleanPhone);
+                //         return existingContact.isRegistered;
+                //     }
+                // }
 
                 console.log("🔍 Checking phone registration for:", cleanPhone);
                 
@@ -132,12 +135,13 @@ export const useContactStore = create<ContactState>()(
 
                     return result.isResgistered;
                 } catch (error) {
+                    console.log(`❌ Error checking registration for ${cleanPhone}:`, error)
                     console.error(`❌ Error checking registration for ${cleanPhone}:`, error);
                     
                     // If we have cached data, return it
-                    if (existingContact) {
-                        return existingContact.isRegistered;
-                    }
+                    // if (existingContact) {
+                    //     return existingContact.isRegistered;
+                    // }
                     
                     return false;
                 }
@@ -179,7 +183,6 @@ export const useContactStore = create<ContactState>()(
                 set({ isChecking: true });
 
                 try {
-                    // Get contacts that need updating (older than 24 hours)
                     const contactsToUpdate = contacts.filter(
                         contact => (Date.now() - contact.lastChecked) > CONTACT_CHECK_INTERVAL
                     );
@@ -217,6 +220,17 @@ export const useContactStore = create<ContactState>()(
                 const { contacts } = get();
                 const unregisteredContacts = contacts.filter(contact => !contact.isRegistered);
                 return unregisteredContacts.map(contact => contact.phoneNumber);
+            },
+
+            // Add this method to the store
+            updateContactsRegistration: (registeredPhones: string[]) => {
+                set((state) => ({
+                    contacts: state.contacts.map(c =>
+                        registeredPhones.includes(c.phoneNumber)
+                            ? { ...c, isRegistered: true }
+                            : c
+                    )
+                }));
             },
         }),
         {
