@@ -1,16 +1,18 @@
-import { useTheme } from "@/hooks/useTheme";
-import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+
+import { useTheme } from '@/hooks/useTheme';
+import React from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ContactItemProps {
   contact: {
     id: string;
     name?: string;
-    phoneNumbers?: { number?: string }[];
-    imageAvailable?: boolean;
-    image?: { uri?: string };
+    phoneNumbers?: { number: string }[];
+    image?: { uri: string };
     isRegistered: boolean;
     userData?: any;
+    imageAvailable?: boolean;
   };
   appColors: any;
   onInvite: (contact: any) => void;
@@ -27,8 +29,13 @@ export const ContactItem: React.FC<ContactItemProps> = ({
 }) => {
   const phoneNumber = contact.phoneNumbers?.[0]?.number || "";
   const avatarText = contact.name ? contact.name[0].toUpperCase() : "?";
-
-  const theme = useTheme()
+  const {theme} = useTheme();
+  
+  // Check if we have valid user data for registered users
+  const isRegisteredWithData = contact.isRegistered && contact.userData?.id;
+  
+  // Extract user ID safely
+  const userId = contact.userData?.id || contact.userData?._id;
 
   return (
     <View style={[styles.contactItem, { borderBottomColor: appColors.border }]}> 
@@ -36,32 +43,36 @@ export const ContactItem: React.FC<ContactItemProps> = ({
         {contact.imageAvailable && contact.image?.uri ? (
           <Image source={{ uri: contact.image.uri }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.theme.tint }]}> 
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.tint }]}> 
             <Text style={styles.avatarText}>{avatarText}</Text>
           </View>
         )}
         <View style={styles.contactDetails}>
-          <Text style={[styles.contactName, { color: appColors.text }]} numberOfLines={1}>
+          <Text style={[styles.contactName, { color: theme.text }]} numberOfLines={1}>
             {contact.name || "Unknown"}
           </Text>
-          <Text style={[styles.phoneNumber, { color: appColors.icon }]} numberOfLines={1}>
+          <Text style={[styles.phoneNumber, { color: theme.icon }]} numberOfLines={1}>
             {phoneNumber}
           </Text>
         </View>
       </View>
-      {contact.isRegistered ? (
+      
+      {isRegisteredWithData ? (
         <TouchableOpacity
-          style={[styles.actionButton, { borderColor: appColors.success }]}
-          onPress={() => onChat(contact.userData?._id || contact.id)}
+          style={[styles.actionButton, {borderColor: theme.text}]}
+          onPress={() => userId && onChat(userId)}
         >
-          <Text style={[styles.buttonText, { color: appColors.success }]}>Chat</Text>
+          <Text style={[styles.buttonText, { color: theme.text }]}>Chat</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
-          style={[styles.actionButton, { borderColor: appColors.accent }]}
+          style={[styles.actionButton, {borderColor: theme.accent}]}
           onPress={() => onInvite(contact)}
+          disabled={isChecking}
         >
-          <Text style={[styles.buttonText, { color: appColors.accent }]}>Invite</Text>
+          <Text style={[styles.buttonText, { color: theme.accent}]}>
+            {isChecking ? 'Checking...' : 'Invite'}
+          </Text>
         </TouchableOpacity>
       )}
     </View>

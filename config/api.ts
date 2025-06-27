@@ -10,24 +10,24 @@ export const API_ENDPOINTS = {
     AUTH: {
         LOGIN: `${API_BASE_URL}/api/users/login`,
         REGISTER: `${API_BASE_URL}/api/users/signup`,
-        ISREGISTERED: `${prisma}/api/users/check-phone`
+        ISREGISTERED: `${prisma}/api/users/check-phone`,
+        ALLUSERS: `${prisma}/api/users/get-all-user`
     },
 };
 
-import { useContactStore } from '@/store/useContactStore';
 
-export async function syncUnregisteredContacts() {
-  const contacts = useContactStore.getState().contacts;
-  const unregistered = contacts.filter(c => !c.isRegistered);
-  if (unregistered.length === 0) return;
+// export async function syncUnregisteredContacts() {
+//   const contacts = useContactStore.getState().contacts;
+//   const unregistered = contacts.filter(c => !c.isRegistered);
+//   if (unregistered.length === 0) return;
 
-  const phoneNumbers = unregistered.map(c => c.phoneNumber);
-  const registeredNow = await checkContactsRegistration(phoneNumbers);
+//   const phoneNumbers = unregistered.map(c => c.phoneNumber);
+//   const registeredNow = await checkContactsRegistration(phoneNumbers);
 
-  if (registeredNow.length > 0) {
-    useContactStore.getState().updateContactsRegistration(registeredNow);
-  }
-}
+//   if (registeredNow.length > 0) {
+//     useContactStore.getState().updateContactsRegistration(registeredNow);
+//   }
+// }
 
 export async function checkContactsRegistration(phoneNumbers: string[]): Promise<string[]> {
   // Example API call (adjust endpoint as needed)
