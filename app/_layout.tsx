@@ -4,15 +4,15 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import { GroupDetailsSheetRoot } from '@/app/components/GroupDetailsSheetRoot';
+// import { AmountFilterSheet, DateFilterSheet } from '@/app/(authenticated)/(tabs)/groups/components/FilterSheets';
+// import { GroupDetailsSheetRoot } from '@/app/components/GroupDetailsSheetRoot';
 import { GroupDetailsProvider } from '@/app/context/GroupDetailsContext';
 import { ThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { UserInactivityProvider } from "@/context/UserInactivityContext";
-import { AmountFilterSheet, DateFilterSheet } from './(tabs)/groups/components/FilterSheets';
 import { FilterSheetProvider, useFilterSheet } from './context/FilterSheetContext';
 
 function RootLayoutContent() {
@@ -24,14 +24,13 @@ function RootLayoutContent() {
 
 	console.log("🔍 RootLayoutContent rendering, loaded:", loaded, "isDark:", theme.isDark);
 
-	if (!loaded) {
-		// Async font loading only occurs in development.
-		return (
-			<View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }}>
-				<Text style={{ color: theme.text, fontSize: 18 }}>Loading...</Text>
-			</View>
-		);
-	}
+	// if (!loaded) {
+	// 	return (
+	// 		<View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }}>
+	// 			<Text style={{ color: theme.text, fontSize: 18 }}>Loading...</Text>
+	// 		</View>
+	// 	);
+	// }
 
 	return (
 		<View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -41,26 +40,26 @@ function RootLayoutContent() {
 						backgroundColor: theme.card,
 					},
 					headerTintColor: theme.text,
+					headerShown: false
 				}}
 			>
 				<Stack.Screen name="lock-Screen" options={{ headerShown: false }} />
 				<Stack.Screen name="auth" options={{ headerShown: false }} />
-				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+				<Stack.Screen name="(authenticated)" options={{ headerShown: false }} />
 				<Stack.Screen name="+not-found" />
 				<Stack.Screen name="white-overlay" options={{ headerShown: false }} />
-				<Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
-				<Stack.Screen name="contacts" options={{ headerShown: false }} />
+				<Stack.Screen name="contacts" options={{ headerShown: true }} />
 			</Stack>
 			<StatusBar style="auto" />
-			<AmountFilterSheet
+			{/* <AmountFilterSheet
 				isAmountSheetVisible={isAmountSheetVisible}
 				onAmountSheetClose={hideAmountSheet}
 			/>
 			<DateFilterSheet
 				isDateSheetVisible={isDateSheetVisible}
 				onDateSheetClose={hideDateSheet}
-			/>
-			<GroupDetailsSheetRoot />
+			/> */}
+			{/* <GroupDetailsSheetRoot /> */}
 		</View>
 	);
 }

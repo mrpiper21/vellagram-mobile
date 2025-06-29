@@ -11,7 +11,7 @@ interface AnnouncementBannerProps {
     onContribute?: () => void;
 }
 
-export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
+const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
     title,
     message,
     onContribute
@@ -152,4 +152,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-}); 
+});
+
+export default AnnouncementBanner

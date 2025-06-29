@@ -120,7 +120,7 @@ const OtpAuthScreen = () => {
 
                 // Delay navigation to show success modal
                 setTimeout(() => {
-                    router.replace("/(tabs)");
+                    router.replace("/(authenticated)/(tabs)");
                 }, 1500);
             } else {
                 setError(response.data.message || "Invalid verification code");

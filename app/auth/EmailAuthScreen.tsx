@@ -95,7 +95,7 @@ const EmailAuthScreen = () => {
                 password: password,
             });
 
-            if (response.data.success) {
+            if (response.data.user) {
                 setFormValue("user", {
                     user: {
                         ...response.data.user,

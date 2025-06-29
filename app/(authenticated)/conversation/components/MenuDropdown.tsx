@@ -2,7 +2,7 @@ import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Modal, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface MenuOption {
     id: string;
@@ -33,13 +33,14 @@ export const MenuDropdown: React.FC<MenuDropdownProps> = ({
     const colorScheme = theme.isDark ? "dark" : "light";
     const appColors = Colors[colorScheme];
 
+    console.log('🔍 MenuDropdown render - visible:', visible);
+
+    if (!visible) {
+        return null;
+    }
+
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="none"
-            onRequestClose={onClose}
-        >
+        <View style={styles.overlay}>
             <TouchableOpacity
                 style={styles.menuOverlay}
                 activeOpacity={1}
@@ -74,22 +75,31 @@ export const MenuDropdown: React.FC<MenuDropdownProps> = ({
                     ))}
                 </Animated.View>
             </TouchableOpacity>
-        </Modal>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
+    overlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1000,
+    },
     menuOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        paddingTop: 100, // Adjust this to position below the header
     },
     menuContainer: {
-        position: 'absolute',
-        top: 80,
-        right: 16,
         borderRadius: 12,
         padding: 8,
         minWidth: 200,
+        marginRight: 16,
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -98,6 +108,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
         elevation: 5,
+        zIndex: 1000,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.1)',
     },
     menuOption: {
         flexDirection: 'row',

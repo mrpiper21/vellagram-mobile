@@ -9,6 +9,7 @@ const tintColorDark = '#3A86A8';  // Brighter Harmonious Teal (instead of #06B6D
 export const Colors = {
     light: {
         text: "#0F172A",
+        textSecondary: "#64748B",
         background: "#FFFFFF",
         tint: tintColorLight,
         icon: "#64748B",
@@ -23,6 +24,7 @@ export const Colors = {
     },
     dark: {
         text: "#F1F5F9",
+        textSecondary: "#94A3B8",
         background: "#0A0F1A", // Darker base
         tint: tintColorDark,
         icon: "#94A3B8",

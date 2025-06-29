@@ -1,12 +1,15 @@
 import { useAppTheme } from "@/context/ThemeContext";
+import { useUserInactivity } from "@/context/UserInactivityContext";
+import { getOtherParticipantDetails } from '@/helpers/conversationUtils';
 import { useSocketChat } from '@/hooks/useSocketChat';
 import { useChatStore, useConversation, useConversationMessages } from '@/store/useChatStore';
+import { useContactStore } from '@/store/useContactStore';
 import { useUserStore } from '@/store/useUserStore';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { AnnouncementBanner } from "./components/AnnouncementBanner";
+import AnnouncementBanner from "./components/AnnouncementBanner";
 import { GroupDetailsSheet } from "./components/GroupDetailsSheet";
 import { Header } from "./components/Header";
 import { MenuDropdown } from "./components/MenuDropdown";
@@ -17,7 +20,7 @@ export default function ConversationScreen() {
     // const recipientId = "1234"; // This is the other user's ID
     const theme = useAppTheme();
     const { user } = useUserStore((state) => state);
-    
+
     const getConversationId = useChatStore(state => state.getConversationId);
 
     const conversationId = useMemo(
@@ -33,7 +36,7 @@ export default function ConversationScreen() {
         );
     }
 
-    return <ConversationView 
+    return <ConversationView
         theme={theme}
         conversationId={conversationId}
         recipientId={recipientId}
@@ -51,13 +54,17 @@ interface ConversationViewProps {
 // Extracted the main view to a new component to avoid conditional hook calls.
 const ConversationView = ({ theme, conversationId, recipientId, user }: ConversationViewProps) => {
     const messages = useConversationMessages(recipientId);
-    const conversation = useConversation(conversationId);
+    const conversation = useConversation(recipientId);
+    const { contacts } = useContactStore();
+    const { allUsers } = useUserInactivity();
 
     console.log("messagess ==== ", messages)
-    
+
+    console.log("conversation ----", conversation)
+
     const { addMessage, markConversationAsRead, setActiveConversation, createConversation } = useChatStore((state) => state);
     const { sendMessage: sendSocketMessage, isConnected } = useSocketChat();
-    
+
     const [newMessage, setNewMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const flatListRef = useRef<FlatList>(null);
@@ -79,6 +86,27 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
         }))
     ), []);
 
+    // Get participant details for header
+    const participantDetails = useMemo(() => {
+        if (conversation?.isGroup) {
+            return {
+                name: conversation.groupName || 'Group',
+                profile: conversation.groupAvatar || 'G',
+                id: conversation.id
+            };
+        }
+
+        const details = getOtherParticipantDetails(
+            recipientId,
+            user?.id,
+            contacts,
+            allUsers as any,
+        );
+
+        console.log('🔍 Participant details for header:', details);
+        return details;
+    }, [conversation, recipientId, user?.id, contacts, allUsers]);
+
     // --- Effects ---
     useEffect(() => {
         if (!conversationId) return;
@@ -89,8 +117,11 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
 
     // --- Handlers ---
     const toggleMenu = () => {
+        console.log('🔍 toggleMenu called, current showMenu:', showMenu);
         const toValue = showMenu ? 0 : 1;
-        setShowMenu(!showMenu);
+        const newShowMenu = !showMenu;
+        console.log('🔍 Setting showMenu to:', newShowMenu, 'animation toValue:', toValue);
+        setShowMenu(newShowMenu);
         Animated.spring(menuAnimation, {
             toValue,
             useNativeDriver: true,
@@ -127,7 +158,7 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !user?.id || !recipientId || !conversationId) return;
-        
+
         setIsSending(true);
         try {
             if (!messages) {
@@ -137,13 +168,16 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                 });
             }
 
+            // Add message to store with appropriate status based on connection
+            const messageStatus = isConnected ? 'sending' : 'queued';
             addMessage({
                 recipientId,
                 senderId: user.id,
                 content: newMessage.trim(),
                 type: 'text'
-            });
+            }, messageStatus);
 
+            // Send message via socket (will be queued if offline)
             sendSocketMessage(recipientId, newMessage.trim(), 'text');
             setNewMessage('');
         } catch (error) {
@@ -155,12 +189,6 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
 
     const handleChatPress = (memberId: string) => {
         // router.push(`/chat/${memberId}`);
-    };
-
-    // --- Group Info (simulate/fetch real data) ---
-    const group = {
-        name: "User " + recipientId, // Should fetch recipient's name
-        avatar: "U",
     };
 
     // --- Render Message ---
@@ -197,11 +225,12 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                         {isOwnMessage && (
                             <Ionicons
                                 name={
-                                    item?.status === 'sending' ? 'time' :
-                                    item?.status === 'sent' ? 'checkmark' :
-                                    item?.status === 'delivered' ? 'checkmark-done' :
-                                    item?.status === 'read' ? 'checkmark-done' :
-                                    'close'
+                                    item?.status === 'queued' ? 'time' :
+                                        item?.status === 'sending' ? 'time' :
+                                            item?.status === 'sent' ? 'checkmark' :
+                                                item?.status === 'delivered' ? 'checkmark-done' :
+                                                    item?.status === 'read' ? 'checkmark-done' :
+                                                        'close'
                                 }
                                 size={14}
                                 color={isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.icon}
@@ -215,11 +244,12 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <Header
-                groupName={group?.name}
-                groupAvatar={group?.avatar}
+                groupName={participantDetails.name}
+                groupAvatar={participantDetails.name?.charAt(0)?.toUpperCase() || 'U'}
                 onMenuPress={toggleMenu}
+                profileUrl={participantDetails.profile || undefined}
             />
             <AnnouncementBanner
                 title="Announcement"
@@ -234,14 +264,14 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
             <GroupDetailsSheet
                 visible={showDetails}
                 onClose={toggleDetails}
-                groupName={group?.name}
-                groupAvatar={group?.avatar}
+                groupName={participantDetails.name}
+                groupAvatar={participantDetails.name?.charAt(0)?.toUpperCase() || 'U'}
                 animation={detailsAnimation}
                 onChatPress={handleChatPress}
             />
             {/* Messages */}
-            <View style={[styles.messagesContainer, { backgroundColor: theme.background }]}> 
-                <View style={[styles.backgroundPattern, { backgroundColor: theme.background }]}> 
+            <View style={[styles.messagesContainer, { backgroundColor: theme.background }]}>
+                <View style={[styles.backgroundPattern, { backgroundColor: theme.background }]}>
                     <View style={styles.patternGrid}>
                         {[...Array(6)].map((_, rowIndex) => (
                             <View key={rowIndex} style={styles.patternRow}>
@@ -298,8 +328,8 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                 keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
                 style={styles.keyboardAvoid}
             >
-                <View style={[styles.inputBar, { backgroundColor: theme.card }]}> 
-                    <View style={[styles.inputContainer, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}> 
+                <View style={[styles.inputBar, { backgroundColor: theme.card }]}>
+                    <View style={[styles.inputContainer, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
                         <TextInput
                             style={[styles.input, { color: theme.text }]}
                             placeholder="Type a message"
@@ -323,7 +353,7 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                                 opacity: isSending ? 0.6 : 1
                             }
                         ]}
-                        disabled={!newMessage?.trim() || isSending || !isConnected}
+                        disabled={!newMessage?.trim() || isSending}
                     >
                         <Ionicons
                             name={isSending ? "time" : "send"}
@@ -338,7 +368,10 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
+    container: {
+        flex: 1,
+        position: 'relative',
+    },
     messagesContainer: {
         flex: 1,
         position: 'relative',

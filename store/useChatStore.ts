@@ -12,7 +12,7 @@ export interface Message {
     content: string;
     type: 'text' | 'image' | 'file' | 'audio' | 'video';
     timestamp: number;
-    status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+    status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'queued';
     acknowledgmentId?: string;
     metadata?: {
         fileUrl?: string;
@@ -24,6 +24,14 @@ export interface Message {
         duration?: number;
         thumbnail?: string;
     };
+}
+
+export interface QueuedMessage {
+    id: string;
+    recipientId: string;
+    content: string;
+    type: string;
+    timestamp: number;
 }
 
 export interface Conversation {
@@ -43,12 +51,14 @@ export interface Conversation {
 export interface ChatState {
     conversations: { [conversationId: string]: Conversation };
     messages: { [recipientId: string]: Message[] };
+    queuedMessages: QueuedMessage[];
     activeConversationId: string | null;
     isLoading: boolean;
     isSending: boolean;
-    addMessage: (message: Omit<Message, 'id' | 'timestamp' | 'status'>) => void;
+    addMessage: (message: Omit<Message, 'id' | 'timestamp' | 'status'>, status?: Message['status']) => void;
     addSocketMessage: (socketMessage: { senderId: string; recipientId: string; message: string; type?: string }) => void;
     updateMessageStatus: (messageId: string, status: Message['status']) => void;
+    updateMessageStatusByContent: (recipientId: string, content: string, status: Message['status']) => void;
     markMessageAsRead: (messageId: string) => void;
     markConversationAsRead: (conversationId: string) => void;
     createConversation: (conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt' | 'lastMessageTime' | 'unreadCount'>) => void;
@@ -65,6 +75,11 @@ export interface ChatState {
     getTotalUnreadCount: () => number;
     getConversationId: (participant1: string, participant2: string) => string;
     clearAllData: () => void;
+    // Queue management functions
+    addToQueue: (message: Omit<QueuedMessage, 'id' | 'timestamp'>) => void;
+    removeFromQueue: (messageId: string) => void;
+    getQueuedMessages: () => QueuedMessage[];
+    clearQueue: () => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -72,16 +87,17 @@ export const useChatStore = create<ChatState>()(
         (set, get) => ({
             conversations: {},
             messages: {},
+            queuedMessages: [],
             activeConversationId: null,
             isLoading: false,
             isSending: false,
 
-            addMessage: (messageData) => {
+            addMessage: (messageData, status: Message['status'] = 'sending') => {
                 const message: Message = {
                     ...messageData,
                     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     timestamp: Date.now(),
-                    status: 'sending'
+                    status
                 };
                 set((state) => {
                     const conversationId = message.recipientId;
@@ -185,6 +201,36 @@ export const useChatStore = create<ChatState>()(
                 });
             },
 
+            updateMessageStatusByContent: (recipientId, content, status) => {
+                console.log('🔍 updateMessageStatusByContent called with:', { recipientId, content, status });
+                set((state) => {
+                    const updatedMessages = { ...state.messages };
+                    let found = false;
+                    
+                    Object.keys(updatedMessages).forEach(conversationId => {
+                        // Check if this conversation contains the recipient
+                        const conversation = state.conversations[conversationId];
+                        if (conversation && conversation.participants.includes(recipientId)) {
+                            console.log('🔍 Checking conversation:', conversationId, 'participants:', conversation.participants);
+                            updatedMessages[conversationId] = updatedMessages[conversationId].map(msg => {
+                                if (msg.content === content && msg.recipientId === recipientId) {
+                                    console.log('✅ Found message to update:', msg.id, 'from', msg.status, 'to', status);
+                                    found = true;
+                                    return { ...msg, status };
+                                }
+                                return msg;
+                            });
+                        }
+                    });
+                    
+                    if (!found) {
+                        console.log('⚠️ No message found to update with content:', content, 'and recipientId:', recipientId);
+                    }
+                    
+                    return { messages: updatedMessages };
+                });
+            },
+
             markMessageAsRead: (messageId) => {
                 set((state) => {
                     const updatedMessages = { ...state.messages };
@@ -200,13 +246,24 @@ export const useChatStore = create<ChatState>()(
             markConversationAsRead: (conversationId) => {
                 set((state) => {
                     const conversation = state.conversations[conversationId];
-                    if (!conversation || conversation.unreadCount === 0) return state;
+                    if (!conversation) return {};
+
+                    const updatedMessages = { ...state.messages };
+                    if (updatedMessages[conversationId]) {
+                        updatedMessages[conversationId] = updatedMessages[conversationId].map(msg => ({
+                            ...msg,
+                            status: msg.status === 'delivered' ? 'read' : msg.status
+                        }));
+                    }
+
                     return {
+                        messages: updatedMessages,
                         conversations: {
                             ...state.conversations,
                             [conversationId]: {
                                 ...conversation,
-                                unreadCount: 0
+                                unreadCount: 0,
+                                updatedAt: Date.now()
                             }
                         }
                     };
@@ -226,10 +283,6 @@ export const useChatStore = create<ChatState>()(
                     conversations: {
                         ...state.conversations,
                         [conversation.id]: conversation
-                    },
-                    messages: {
-                        ...state.messages,
-                        [conversation.id]: []
                     }
                 }));
             },
@@ -237,7 +290,8 @@ export const useChatStore = create<ChatState>()(
             updateConversation: (conversationId, updates) => {
                 set((state) => {
                     const conversation = state.conversations[conversationId];
-                    if (!conversation) return state;
+                    if (!conversation) return {};
+
                     return {
                         conversations: {
                             ...state.conversations,
@@ -253,14 +307,11 @@ export const useChatStore = create<ChatState>()(
 
             deleteConversation: (conversationId) => {
                 set((state) => {
-                    const updatedMessages = { ...state.messages };
-                    delete updatedMessages[conversationId];
-                    const updatedConversations = { ...state.conversations };
-                    delete updatedConversations[conversationId];
+                    const { [conversationId]: deletedConversation, ...remainingConversations } = state.conversations;
+                    const { [conversationId]: deletedMessages, ...remainingMessages } = state.messages;
                     return {
-                        conversations: updatedConversations,
-                        messages: updatedMessages,
-                        activeConversationId: state.activeConversationId === conversationId ? null : state.activeConversationId
+                        conversations: remainingConversations,
+                        messages: remainingMessages
                     };
                 });
             },
@@ -280,9 +331,8 @@ export const useChatStore = create<ChatState>()(
 
             clearMessages: (conversationId) => {
                 set((state) => {
-                    const updatedMessages = { ...state.messages };
-                    delete updatedMessages[conversationId];
-                    return { messages: updatedMessages };
+                    const { [conversationId]: deletedMessages, ...remainingMessages } = state.messages;
+                    return { messages: remainingMessages };
                 });
             },
 
@@ -290,63 +340,78 @@ export const useChatStore = create<ChatState>()(
                 set((state) => {
                     const updatedMessages = { ...state.messages };
                     Object.keys(updatedMessages).forEach(conversationId => {
-                        updatedMessages[conversationId] = updatedMessages[conversationId].filter(
-                            msg => msg.id !== messageId
-                        );
+                        updatedMessages[conversationId] = updatedMessages[conversationId].filter(msg => msg.id !== messageId);
                     });
                     return { messages: updatedMessages };
                 });
             },
 
             getConversation: (conversationId) => {
-                if (!conversationId) return undefined;
-                const conversation = get().conversations[conversationId];
-                return conversation && typeof conversation === 'object' ? conversation : undefined;
+                return get().conversations[conversationId];
             },
 
             getConversationsList: () => {
                 const conversations = get().conversations;
-                return Object.values(conversations)
-                    .filter(conv => conv && typeof conv === 'object')
-                    .sort((a, b) => {
-                        const timeA = a?.lastMessageTime || a?.createdAt || 0;
-                        const timeB = b?.lastMessageTime || b?.createdAt || 0;
-                        return timeB - timeA;
-                    });
+                return Object.values(conversations).sort((a, b) => b.lastMessageTime - a.lastMessageTime);
             },
 
             getMessages: (conversationId) => {
-                if (!conversationId) return [];
-                const messages = get().messages[conversationId];
-                return Array.isArray(messages) ? messages : [];
+                return get().messages[conversationId] || [];
             },
 
             getUnreadCount: (conversationId) => {
-                if (!conversationId) return 0;
                 const conversation = get().conversations[conversationId];
                 return conversation?.unreadCount || 0;
             },
 
             getTotalUnreadCount: () => {
                 const conversations = get().conversations;
-                return Object.values(conversations)
-                    .filter(conv => conv && typeof conv === 'object')
-                    .reduce((total, conv) => total + (conv?.unreadCount || 0), 0);
+                return Object.values(conversations).reduce((total, conversation) => total + conversation.unreadCount, 0);
             },
 
-            getConversationId: (participant1: string, participant2: string) => {
+            getConversationId: (participant1, participant2) => {
                 const sortedParticipants = [participant1, participant2].sort();
-                return `conv-${sortedParticipants[0]}-${sortedParticipants[1]}`;
+                return sortedParticipants.join('-');
             },
 
             clearAllData: () => {
                 set({
                     conversations: {},
                     messages: {},
+                    queuedMessages: [],
                     activeConversationId: null,
                     isLoading: false,
                     isSending: false
                 });
+            },
+
+            // Queue management functions
+            addToQueue: (messageData) => {
+                const queuedMessage: QueuedMessage = {
+                    ...messageData,
+                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    timestamp: Date.now()
+                };
+                set((state) => ({
+                    queuedMessages: [...state.queuedMessages, queuedMessage]
+                }));
+                console.log('📬 Message added to queue:', queuedMessage);
+            },
+
+            removeFromQueue: (messageId) => {
+                set((state) => ({
+                    queuedMessages: state.queuedMessages.filter(msg => msg.id !== messageId)
+                }));
+                console.log('📤 Message removed from queue:', messageId);
+            },
+
+            getQueuedMessages: () => {
+                return get().queuedMessages;
+            },
+
+            clearQueue: () => {
+                set({ queuedMessages: [] });
+                console.log('🗑️ Message queue cleared');
             }
         }),
         {
@@ -355,8 +420,8 @@ export const useChatStore = create<ChatState>()(
             partialize: (state) => ({
                 conversations: state.conversations,
                 messages: state.messages,
-                activeConversationId: state.activeConversationId,
-            }),
+                queuedMessages: state.queuedMessages
+            })
         }
     )
 );
@@ -367,6 +432,7 @@ export const useChatActions = () => useChatStore((state) => ({
     addMessage: state.addMessage,
     addSocketMessage: state.addSocketMessage,
     updateMessageStatus: state.updateMessageStatus,
+    updateMessageStatusByContent: state.updateMessageStatusByContent,
     markMessageAsRead: state.markMessageAsRead,
     markConversationAsRead: state.markConversationAsRead,
     createConversation: state.createConversation,

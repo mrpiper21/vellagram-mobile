@@ -4,10 +4,42 @@ import { useUserStore } from '@/store/useUserStore';
 import { useEffect, useRef } from 'react';
 
 export const useSocketChat = () => {
-    const { socket } = ruseSocketContext();
-    const { addSocketMessage } = useChatStore();
+    const { socket, isConnected } = ruseSocketContext();
+    const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
     const isInitialized = useRef(false);
+
+    // Function to send queued messages when coming back online
+    const sendQueuedMessages = () => {
+        if (!socket || !user?.id || !isConnected) return;
+
+        const queuedMessages = getQueuedMessages();
+        console.log('📤 Sending queued messages:', queuedMessages.length);
+
+        queuedMessages.forEach(queuedMsg => {
+            const messageData = {
+                recipientId: queuedMsg.recipientId,
+                message: queuedMsg.content,
+                type: queuedMsg.type
+            };
+
+            console.log('📤 Sending queued message:', messageData);
+            socket.emit('message', messageData);
+            
+            // Update message status to 'sent' when sent from queue
+            console.log('🔄 Updating queued message status to sent for:', { recipientId: queuedMsg.recipientId, content: queuedMsg.content });
+            updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'sent');
+            removeFromQueue(queuedMsg.id);
+        });
+    };
+
+    // Send queued messages when socket connects
+    useEffect(() => {
+        if (isConnected && socket && user?.id) {
+            console.log('🔌 Socket connected, sending queued messages');
+            sendQueuedMessages();
+        }
+    }, [isConnected, socket, user?.id]);
 
     useEffect(() => {
         if (!socket || !user?.id || isInitialized.current) return;
@@ -15,27 +47,89 @@ export const useSocketChat = () => {
         console.log('🔌 Initializing socket chat listeners for user:', user.id);
         isInitialized.current = true;
 
-        // Listen for incoming messages
+        // Register user with socket server
+        socket.emit('register', { userId: user.id });
+
+        // Listen for incoming messages (server format)
         const handleIncomingMessage = (data: {
+            id: string;
+            content: string;
+            type: string;
             senderId: string;
-            recipientId: string;
-            message: string;
-            type?: string;
+            timestamp: Date;
+            sessionId?: string;
+            acknowledgmentId?: string;
         }) => {
             console.log('📨 Received socket message:', data);
-            addSocketMessage(data);
+            
+            if (!user?.id) return;
+            
+            // Convert server format to our format
+            const socketMessage = {
+                senderId: data.senderId,
+                recipientId: user.id, // Current user is the recipient
+                message: data.content,
+                type: data.type
+            };
+            
+            addSocketMessage(socketMessage);
+            
+            // Send delivery confirmation to server
+            if (data.acknowledgmentId) {
+                socket.emit('message_delivered', {
+                    messageId: data.id,
+                    acknowledgmentId: data.acknowledgmentId
+                });
+            }
         };
 
-        // Listen for message delivery acknowledgments
-        const handleMessageDelivered = (data: { messageId: string; conversationId: string }) => {
-            console.log('✅ Message delivered:', data);
-            useChatStore.getState().updateMessageStatus(data.messageId, 'delivered');
+        // Listen for pending messages when user connects
+        const handlePendingMessages = (data: {
+            sessionId: string;
+            otherParticipant: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                profilePicture: string | null;
+            };
+            messages: Array<{
+                id: string;
+                content: string;
+                type: string;
+                timestamp: Date;
+                sender: {
+                    id: string;
+                    firstName: string;
+                    lastName: string;
+                    profilePicture: string | null;
+                };
+            }>;
+        }) => {
+            console.log('📨 Received pending messages:', data);
+            
+            if (!user?.id) return;
+            const currentUserId = user.id; // Ensure it's a string
+            
+            // Add all pending messages to the store
+            data.messages.forEach(msg => {
+                const socketMessage = {
+                    senderId: msg.sender.id,
+                    recipientId: currentUserId,
+                    message: msg.content,
+                    type: msg.type
+                };
+                addSocketMessage(socketMessage);
+            });
         };
 
-        // Listen for message read acknowledgments
-        const handleMessageRead = (data: { messageId: string; conversationId: string }) => {
-            console.log('👁️ Message read:', data);
-            useChatStore.getState().updateMessageStatus(data.messageId, 'read');
+        // Listen for delivery status updates from server
+        const handleDeliveryStatus = (data: {
+            messageId: string;
+            status: 'delivered' | 'read' | 'failed';
+            timestamp: Date;
+        }) => {
+            console.log('📨 Delivery status update:', data);
+            updateMessageStatus(data.messageId, data.status);
         };
 
         // Listen for typing indicators
@@ -49,64 +143,74 @@ export const useSocketChat = () => {
             // You can implement typing indicators here
         };
 
-        // Join user's personal room for receiving messages
-        socket.emit('join-room', { userId: user.id });
-
         // Set up event listeners
         socket.on('message', handleIncomingMessage);
-        socket.on('message-delivered', handleMessageDelivered);
-        socket.on('message-read', handleMessageRead);
+        socket.on('pending_messages', handlePendingMessages);
+        socket.on('delivery_status', handleDeliveryStatus);
         socket.on('typing-start', handleTypingStart);
         socket.on('typing-stop', handleTypingStop);
 
         return () => {
             console.log('🔌 Cleaning up socket chat listeners');
             socket.off('message', handleIncomingMessage);
-            socket.off('message-delivered', handleMessageDelivered);
-            socket.off('message-read', handleMessageRead);
+            socket.off('pending_messages', handlePendingMessages);
+            socket.off('delivery_status', handleDeliveryStatus);
             socket.off('typing-start', handleTypingStart);
             socket.off('typing-stop', handleTypingStop);
-            socket.emit('leave-room', { userId: user.id });
             isInitialized.current = false;
         };
     }, [socket, user?.id, addSocketMessage]);
 
     // Return functions for sending messages
     const sendMessage = (recipientId: string, message: string, type: string = 'text') => {
-        if (!socket || !user?.id) {
-            console.warn('Cannot send message: socket or user not available');
+        if (!user?.id) {
+            console.warn('Cannot send message: user not available');
             return;
         }
 
         const messageData = {
-            senderId: user.id,
             recipientId,
             message,
             type
         };
 
-        console.log('📤 Sending message:', messageData);
-        socket.emit('send-message', messageData);
+        // If socket is connected, send immediately
+        if (socket && isConnected) {
+            console.log('📤 Sending message immediately:', messageData);
+            socket.emit('message', messageData);
+            // Update status to 'sent' when sent immediately
+            console.log('🔄 Updating message status to sent for:', { recipientId, message });
+            updateMessageStatusByContent(recipientId, message, 'sent');
+        } else {
+            // If socket is not connected, add to queue
+            console.log('📬 Socket offline, adding message to queue:', messageData);
+            addToQueue({
+                recipientId,
+                content: message,
+                type
+            });
+        }
     };
 
     const sendTypingIndicator = (conversationId: string, isTyping: boolean) => {
-        if (!socket || !user?.id) return;
+        if (!socket || !user?.id || !isConnected) return;
 
         const event = isTyping ? 'typing-start' : 'typing-stop';
         socket.emit(event, { conversationId, userId: user.id });
     };
 
     const markMessageAsRead = (messageId: string, conversationId: string) => {
-        if (!socket || !user?.id) return;
+        if (!socket || !user?.id || !isConnected) return;
 
         console.log('👁️ Marking message as read:', messageId);
-        socket.emit('mark-message-read', { messageId, conversationId, userId: user.id });
+        socket.emit('message_read', { messageId, acknowledgmentId: `${messageId}-${Date.now()}` });
     };
 
     return {
         sendMessage,
         sendTypingIndicator,
         markMessageAsRead,
-        isConnected: !!socket?.connected
+        isConnected: !!socket?.connected && isConnected,
+        sendQueuedMessages
     };
 }; 

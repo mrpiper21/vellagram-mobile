@@ -107,7 +107,7 @@ const ContactsScreen = () => {
 
   // Handle starting a chat
   const handleChat = useCallback((userId: string) => {
-    router.push(`/conversation/${userId}`);
+    router.push(`/(authenticated)/conversation/${userId}`);
   }, []);
 
   // Search handling with debouncing
@@ -122,18 +122,28 @@ const ContactsScreen = () => {
     }
   }, 500), [syncContactsInBackground]);
 
-  // Filter contacts based on search
+  // Filter contacts based on search and group by registration status
   const filteredContacts = useMemo(() => {
-    if (!searchQuery.trim()) return deviceContacts;
+    let contactsToFilter = deviceContacts;
 
-    const normalizedQuery = searchQuery.toLowerCase().replace(/\D/g, '');
-    return deviceContacts.filter(contact => {
-      const contactName = contact.name?.toLowerCase() || '';
-      const contactPhone = contact.phoneNumbers?.[0]?.number.replace(/\D/g, '') || '';
-      
-      return contactName.includes(searchQuery.toLowerCase()) || 
-             contactPhone.includes(normalizedQuery);
-    });
+    // Apply search filter if there's a search query
+    if (searchQuery.trim()) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\D/g, '');
+      contactsToFilter = deviceContacts.filter(contact => {
+        const contactName = contact.name?.toLowerCase() || '';
+        const contactPhone = contact.phoneNumbers?.[0]?.number.replace(/\D/g, '') || '';
+
+        return contactName.includes(searchQuery.toLowerCase()) ||
+          contactPhone.includes(normalizedQuery);
+      });
+    }
+
+    // Group contacts: registered users first, then unregistered users
+    const registeredContacts = contactsToFilter.filter(contact => contact.isRegistered);
+    const unregisteredContacts = contactsToFilter.filter(contact => !contact.isRegistered);
+
+    // Return registered contacts first, then unregistered contacts
+    return [...registeredContacts, ...unregisteredContacts];
   }, [deviceContacts, searchQuery]);
 
   // Pull-to-refresh handler
@@ -239,6 +249,7 @@ const ContactsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 20
   },
   centerContent: {
     justifyContent: "center",

@@ -1,22 +1,23 @@
-import { GroupDetailsSheet } from '@/app/(tabs)/groups/components/GroupDetailsSheet';
-import { useGroupDetails } from '@/app/context/GroupDetailsContext';
-import { useAppTheme } from '@/context/ThemeContext';
+// import { GroupDetailsSheet } from '@/app/(tabs)/groups/components/GroupDetailsSheet';
 
-export const GroupDetailsSheetRoot = () => {
-    const theme = useAppTheme();
-    const colorScheme = theme.isDark ? 'dark' : 'light';
-    const { selectedGroup, hideGroupDetails } = useGroupDetails();
+// export const GroupDetailsSheetRoot = () => {
+//     const theme = useAppTheme();
+//     const colorScheme = theme.isDark ? 'dark' : 'light';
+//     const { selectedGroup, hideGroupDetails } = useGroupDetails();
 
-    if (!selectedGroup) {
-        return null;
-    }
+//     if (!selectedGroup) {
+//         return null;
+//     }
 
-    return (
-        <GroupDetailsSheet
-            isVisible={true}
-            onClose={hideGroupDetails}
-            colorScheme={colorScheme}
-            group={selectedGroup}
-        />
-    );
-}; 
+//     return (
+//         <GroupDetailsSheet
+//             visible={true}
+//             onClose={hideGroupDetails}
+//             groupAvatar='ss'
+//             groupName='kkd'
+//             onChatPress={()=> null}
+           
+//             // group={selectedGroup}
+//         />
+//     );
+// }; 

@@ -5,21 +5,21 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    Alert,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    Vibration,
-    View,
+	Alert,
+	SafeAreaView,
+	StatusBar,
+	StyleSheet,
+	Text,
+	TouchableOpacity,
+	Vibration,
+	View,
 } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming
+	useAnimatedStyle,
+	useSharedValue,
+	withRepeat,
+	withSequence,
+	withTiming
 } from "react-native-reanimated";
 
 interface NumberButtonProps {
@@ -81,7 +81,7 @@ export default function PasscodeScreen() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 
-	// Handle authentication state
+	// Handle authentication stater
 	// useEffect(() => {
 	// 	if (isAuthenticated === false) {
 	// 		router.replace("/auth/EmailAuthScreen");
@@ -122,7 +122,7 @@ export default function PasscodeScreen() {
 
 			// Replace with actual authentication logic
 			if (submittedPasscode === user?.pin) {
-				router.replace("/(tabs)");
+				router.replace("/(authenticated)/(tabs)");
 			} else {
 				// Shake animation for wrong passcode
 				offset.value = withSequence(
@@ -148,7 +148,7 @@ export default function PasscodeScreen() {
 			});
 
 			if (success) {
-				router.replace("/(tabs)");
+				router.replace("/(authenticated)/(tabs)");
 			}
 		} catch (error) {
 			setError("Biometric authentication failed");
