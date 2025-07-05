@@ -28,64 +28,90 @@ export default function AccountScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <View style={[styles.header, { backgroundColor: theme.card }]}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>
-                    Account
-                </Text>
-            </View>
+			<View style={[styles.container, { backgroundColor: theme.background }]}>
+				<View style={[styles.content, { backgroundColor: theme.background }]}>
+					<View style={[styles.profileCard, { backgroundColor: theme.card }]}>
+						<View style={[styles.avatar, { backgroundColor: theme.tint }]}>
+							<Text style={styles.avatarText}>
+								{user?.firstName?.charAt(0)?.toUpperCase() || "U"}
+							</Text>
+						</View>
+						<Text style={[styles.name, { color: theme.text }]}>
+							{user?.firstName} {user?.lastName}
+						</Text>
+						<Text style={[styles.email, { color: theme.textSecondary }]}>
+							{user?.email}
+						</Text>
+					</View>
 
-            <View style={[styles.content, { backgroundColor: theme.background }]}>
-                <View style={[styles.profileCard, { backgroundColor: theme.card }]}>
-                    <View style={[styles.avatar, { backgroundColor: theme.tint }]}>
-                        <Text style={styles.avatarText}>
-                            {user?.firstName?.charAt(0)?.toUpperCase() || 'U'}
-                        </Text>
-                    </View>
-                    <Text style={[styles.name, { color: theme.text }]}>
-                        {user?.firstName} {user?.lastName}
-                    </Text>
-                    <Text style={[styles.email, { color: theme.textSecondary }]}>
-                        {user?.email}
-                    </Text>
-                </View>
+					<View style={[styles.menuSection, { backgroundColor: theme.card }]}>
+						<TouchableOpacity style={styles.menuItem}>
+							<Ionicons name="person-outline" size={24} color={theme.text} />
+							<Text style={[styles.menuText, { color: theme.text }]}>
+								Edit Profile
+							</Text>
+							<Ionicons
+								name="chevron-forward"
+								size={20}
+								color={theme.textSecondary}
+							/>
+						</TouchableOpacity>
 
-                <View style={[styles.menuSection, { backgroundColor: theme.card }]}>
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="person-outline" size={24} color={theme.text} />
-                        <Text style={[styles.menuText, { color: theme.text }]}>Edit Profile</Text>
-                        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                    </TouchableOpacity>
+						<TouchableOpacity style={styles.menuItem}>
+							<Ionicons
+								name="notifications-outline"
+								size={24}
+								color={theme.text}
+							/>
+							<Text style={[styles.menuText, { color: theme.text }]}>
+								Notifications
+							</Text>
+							<Ionicons
+								name="chevron-forward"
+								size={20}
+								color={theme.textSecondary}
+							/>
+						</TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="notifications-outline" size={24} color={theme.text} />
-                        <Text style={[styles.menuText, { color: theme.text }]}>Notifications</Text>
-                        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                    </TouchableOpacity>
+						<TouchableOpacity style={styles.menuItem}>
+							<Ionicons name="shield-outline" size={24} color={theme.text} />
+							<Text style={[styles.menuText, { color: theme.text }]}>
+								Privacy & Security
+							</Text>
+							<Ionicons
+								name="chevron-forward"
+								size={20}
+								color={theme.textSecondary}
+							/>
+						</TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="shield-outline" size={24} color={theme.text} />
-                        <Text style={[styles.menuText, { color: theme.text }]}>Privacy & Security</Text>
-                        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                    </TouchableOpacity>
+						<TouchableOpacity style={styles.menuItem}>
+							<Ionicons
+								name="help-circle-outline"
+								size={24}
+								color={theme.text}
+							/>
+							<Text style={[styles.menuText, { color: theme.text }]}>
+								Help & Support
+							</Text>
+							<Ionicons
+								name="chevron-forward"
+								size={20}
+								color={theme.textSecondary}
+							/>
+						</TouchableOpacity>
+					</View>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="help-circle-outline" size={24} color={theme.text} />
-                        <Text style={[styles.menuText, { color: theme.text }]}>Help & Support</Text>
-                        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.logoutButton, { backgroundColor: theme.accent }]}
-                    onPress={handleLogout}
-                >
-                    <Ionicons name="log-out-outline" size={24} color="white" />
-                    <Text style={styles.logoutText}>Logout</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
+					<TouchableOpacity
+						style={[styles.logoutButton, { backgroundColor: theme.accent }]}
+						onPress={handleLogout}
+					>
+						<Ionicons name="log-out-outline" size={24} color="white" />
+						<Text style={styles.logoutText}>Logout</Text>
+					</TouchableOpacity>
+				</View>
+			</View>
+		);
 }
 
 const styles = StyleSheet.create({
