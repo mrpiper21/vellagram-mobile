@@ -1,7 +1,8 @@
 import { IUser } from "@/@types/user-auth-types";
 import useFormStore from "@/app/store/useFormStore";
 import { normalizeIdentifiers } from "@/helpers/normalizeIdentifiers";
-import { checkPhoneNumberRegisteration, fetchAllUsers } from "@/services/contact.service";
+import { fetchAllUsers } from "@/services/contact.service";
+import { notificationService } from "@/services/notification.service";
 import { ContactUser, useContactStore } from "@/store/useContactStore";
 import { useUserStore } from "@/store/useUserStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,9 +13,9 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 const APP_STATE_KEY = "app_state";
 const LOCK_TIME = 5 * 60 * 1000; // 5 minutes
 const PHONE_CHECK_CACHE_KEY = "phone_check_cache";
-const PHONE_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes cache
-const BATCH_SIZE = 10; // Process contacts in batches
-const BATCH_DELAY = 100; // Delay between batches
+const PHONE_CHECK_INTERVAL = 30 * 60 * 1000;
+const BATCH_SIZE = 10;
+const BATCH_DELAY = 100;
 
 interface PhoneCheckCache {
     [phoneNumber: string]: {
@@ -61,17 +62,23 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
     const processingQueue = useRef<string[]>([]);
     const isProcessingRef = useRef(false);
     const userIdentifiersSet = useRef<Set<string>>(new Set());
+    const lastContactSyncTime = useRef<number>(0);
 
     // Contact store methods
-    const { batchAddContacts } = useContactStore();
+    const { batchAddContacts, checkPhoneRegistration: storeCheckPhoneRegistration, updateFromUserList } = useContactStore();
 
-    // Load cache and initialize on mount
     useEffect(() => {
         loadPhoneCheckCache();
         loadDeviceContacts();
+        notificationService.initialize();
     }, []);
 
-    // Pre-compute user identifiers for faster lookups
+    useEffect(() => {
+        return () => {
+            notificationService.cleanup();
+        };
+    }, []);
+
     useEffect(() => {
         if (allUsers) {
             const identifiers = new Set<string>();
@@ -117,7 +124,6 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
         }
 
         isProcessingRef.current = true;
-        // setIsChecking(true);
         
         const totalBatches = Math.ceil(contacts.length / BATCH_SIZE);
         setContactsProcessingStatus({
@@ -170,7 +176,6 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
             console.error("❌ Error in batch processing:", error);
         } finally {
             isProcessingRef.current = false;
-            // setIsChecking(false);
             setContactsProcessingStatus({
                 isProcessing: false,
                 processed: 0,
@@ -178,7 +183,7 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
                 currentBatch: 0,
             });
         }
-    }, [ batchAddContacts]);
+    }, [batchAddContacts]);
 
     const loadDeviceContacts = useCallback(async () => {
         if (!user?.id) return;
@@ -194,19 +199,37 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
 
             console.log("🚀 Loading users and device contacts in parallel...");
             
-            // Parallelize fetching
-            const [allUsersFromApi, { data: deviceContacts }] = await Promise.all([
-                fetchAllUsers(),
-                Contacts.getContactsAsync({
-                    fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-                })
-            ]);
+            // Fetch all users with ETag support
+            const [allUsersFromApi, wasModified, notModified] = await fetchAllUsers();
             
-            if (allUsersFromApi) {
-                setAllUsers(allUsersFromApi);
+            if (allUsersFromApi && allUsersFromApi.length > 0) {
+                // Convert UserData to IUser format
+                const convertedUsers: IUser[] = allUsersFromApi.map((user: any) => ({
+                    ...user,
+                    pin: '', // Add missing IUser properties with defaults
+                    groups: [],
+                }));
+                setAllUsers(convertedUsers);
                 console.log("👥 Loaded", allUsersFromApi.length, "registered users");
             }
             
+            // If server returned 304 and we have recent contact sync, skip processing
+            if (notModified && (Date.now() - lastContactSyncTime.current) < 60 * 60 * 1000) {
+                console.log("⏩ Skipping contact processing - no changes detected and recent sync exists");
+                return;
+            }
+
+            // If data wasn't modified and we have recent sync, skip processing
+            if (!wasModified && (Date.now() - lastContactSyncTime.current) < 60 * 60 * 1000) {
+                console.log("⏩ Skipping contact processing - no data changes and recent sync exists");
+                return;
+            }
+
+            // Load device contacts
+            const { data: deviceContacts } = await Contacts.getContactsAsync({
+                fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
+            });
+
             // Process contacts for batch checking
             const contactsToProcess: Omit<ContactUser, 'lastChecked'>[] = [];
             
@@ -215,15 +238,17 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
                     const phone = phoneObj.number;
                     if (!phone) return;
                     
-                    const normalized = normalizeIdentifiers(phone)[0];
-                    if (!normalized) return;
+                    const normalized = normalizeIdentifiers(phone);
+                    if (!normalized.length) return;
                     
-                    contactsToProcess.push({
-                        id: `${contact.id}-${normalized}`,
-                        phoneNumber: normalized,
-                        name: contact.name,
-                        avatar: contact.image?.uri,
-                        isRegistered: false, // Will be determined in batch processing
+                    normalized.forEach(n => {
+                        contactsToProcess.push({
+                            id: `${contact.id}-${n}`,
+                            phoneNumber: n,
+                            name: contact.name,
+                            avatar: contact.image?.uri,
+                            isRegistered: false, // Will be determined in batch processing
+                        });
                     });
                 });
             }
@@ -241,13 +266,16 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
                 }, 500); // Small delay to let UI render first
             }
             
+            // Update last sync time
+            lastContactSyncTime.current = Date.now();
+
         } catch (error) {
             console.error("Contact loading error:", error);
         }
     }, [user?.id, batchAddContacts, processBatchedContacts]);
 
     // Optimized phone registration check
-    const checkPhoneRegistration = useCallback(async (phoneNumber: string) => {
+    const checkPhoneRegistration = useCallback(async (phoneNumber: string): Promise<{ isRegistered: boolean; userData?: any }> => {
         const cleanPhone = phoneNumber.replace(/\D/g, '');
         
         // Check cache first
@@ -291,10 +319,10 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
         
         // Fallback to API if not found in local data
         try {
-            const result = await checkPhoneNumberRegisteration(cleanPhone);
+            const result = await storeCheckPhoneRegistration(cleanPhone);
             const apiResult = {
-                isRegistered: result.isResgistered,
-                userData: result.data
+                isRegistered: result,
+                userData: null
             };
             
             phoneCheckCache.current[cleanPhone] = {
@@ -322,6 +350,7 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
         phoneCheckCache.current = {};
         pendingChecks.current.clear();
         processingQueue.current = [];
+        lastContactSyncTime.current = 0;
         try {
             await AsyncStorage.removeItem(PHONE_CHECK_CACHE_KEY);
             console.log("🗑️ Cleared phone check cache");

@@ -1,20 +1,17 @@
 import { ruseSocketContext } from '@/context/useSockectContext';
 import { useChatStore } from '@/store/useChatStore';
 import { useUserStore } from '@/store/useUserStore';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 export const useSocketChat = () => {
     const { socket, isConnected } = ruseSocketContext();
     const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
-    const isInitialized = useRef(false);
 
-    // Function to send queued messages when coming back online
     const sendQueuedMessages = () => {
         if (!socket || !user?.id || !isConnected) return;
 
         const queuedMessages = getQueuedMessages();
-        console.log('📤 Sending queued messages:', queuedMessages.length);
 
         queuedMessages.forEach(queuedMsg => {
             const messageData = {
@@ -25,8 +22,6 @@ export const useSocketChat = () => {
 
             console.log('📤 Sending queued message:', messageData);
             socket.emit('message', messageData);
-            
-            // Update message status to 'sent' when sent from queue
             console.log('🔄 Updating queued message status to sent for:', { recipientId: queuedMsg.recipientId, content: queuedMsg.content });
             updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'sent');
             removeFromQueue(queuedMsg.id);
@@ -42,15 +37,12 @@ export const useSocketChat = () => {
     }, [isConnected, socket, user?.id]);
 
     useEffect(() => {
-        if (!socket || !user?.id || isInitialized.current) return;
+        if (!socket || !user?.id) return;
 
         console.log('🔌 Initializing socket chat listeners for user:', user.id);
-        isInitialized.current = true;
 
-        // Register user with socket server
         socket.emit('register', { userId: user.id });
 
-        // Listen for incoming messages (server format)
         const handleIncomingMessage = (data: {
             id: string;
             content: string;
@@ -61,20 +53,15 @@ export const useSocketChat = () => {
             acknowledgmentId?: string;
         }) => {
             console.log('📨 Received socket message:', data);
-            
             if (!user?.id) return;
-            
-            // Convert server format to our format
             const socketMessage = {
                 senderId: data.senderId,
-                recipientId: user.id, // Current user is the recipient
+                recipientId: user.id,
                 message: data.content,
-                type: data.type
+                type: data.type,
+                id: data.id
             };
-            
             addSocketMessage(socketMessage);
-            
-            // Send delivery confirmation to server
             if (data.acknowledgmentId) {
                 socket.emit('message_delivered', {
                     messageId: data.id,
@@ -83,7 +70,6 @@ export const useSocketChat = () => {
             }
         };
 
-        // Listen for pending messages when user connects
         const handlePendingMessages = (data: {
             sessionId: string;
             otherParticipant: {
@@ -106,17 +92,15 @@ export const useSocketChat = () => {
             }>;
         }) => {
             console.log('📨 Received pending messages:', data);
-            
             if (!user?.id) return;
-            const currentUserId = user.id; // Ensure it's a string
-            
-            // Add all pending messages to the store
+            const currentUserId = user.id;
             data.messages.forEach(msg => {
                 const socketMessage = {
                     senderId: msg.sender.id,
                     recipientId: currentUserId,
                     message: msg.content,
-                    type: msg.type
+                    type: msg.type,
+                    id: msg.id
                 };
                 addSocketMessage(socketMessage);
             });
@@ -135,12 +119,17 @@ export const useSocketChat = () => {
         // Listen for typing indicators
         const handleTypingStart = (data: { conversationId: string; userId: string }) => {
             console.log('⌨️ User started typing:', data);
-            // You can implement typing indicators here
         };
-
         const handleTypingStop = (data: { conversationId: string; userId: string }) => {
             console.log('⏹️ User stopped typing:', data);
-            // You can implement typing indicators here
+        };
+
+        // Listen for read receipts
+        const handleMessageRead = (data: { conversationId: string; messageIds: string[]; userId: string }) => {
+            console.log('👁️ Message(s) read:', data);
+            data.messageIds.forEach(messageId => {
+                updateMessageStatus(messageId, 'read');
+            });
         };
 
         // Set up event listeners
@@ -149,6 +138,7 @@ export const useSocketChat = () => {
         socket.on('delivery_status', handleDeliveryStatus);
         socket.on('typing-start', handleTypingStart);
         socket.on('typing-stop', handleTypingStop);
+        socket.on('message_read', handleMessageRead);
 
         return () => {
             console.log('🔌 Cleaning up socket chat listeners');
@@ -157,7 +147,7 @@ export const useSocketChat = () => {
             socket.off('delivery_status', handleDeliveryStatus);
             socket.off('typing-start', handleTypingStart);
             socket.off('typing-stop', handleTypingStop);
-            isInitialized.current = false;
+            socket.off('message_read', handleMessageRead);
         };
     }, [socket, user?.id, addSocketMessage]);
 

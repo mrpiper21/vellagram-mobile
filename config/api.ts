@@ -1,6 +1,6 @@
 // API Configuration
 const API_BASE_URL = "http://172.20.10.8:2000"; // Local development server
-const prisma = 'http://172.20.10.8:2000'
+const prisma = "http://172.20.10.8:2000";
 
 export const API_ENDPOINTS = {
     OTP: {

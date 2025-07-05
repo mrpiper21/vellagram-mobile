@@ -7,7 +7,7 @@ import { useSocketChat } from '@/hooks/useSocketChat';
 import { useConversations, useTotalUnreadCount } from '@/store/useChatStore';
 import { useContactStore } from '@/store/useContactStore';
 import { useUserStore } from '@/store/useUserStore';
-import { Ionicons } from '@expo/vector-icons';
+import { AntDesign, FontAwesome, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -21,9 +21,12 @@ function ChatScreenContent() {
     const { user: currentUser } = useUserStore()
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    // const { clearAllData, } = useChatActions()
 
     // Socket integration
     const { isConnected } = useSocketChat();
+
+    // clearAllData()
 
     // Handle refresh
     const onRefresh = useCallback(async () => {
@@ -135,12 +138,7 @@ function ChatScreenContent() {
             const lastMessage = item?.lastMessage;
             const isUnread = (item?.unreadCount || 0) > 0;
 
-            console.log('🔍 Rendering conversation:', {
-                conversationId: item?.id,
-                isGroup: item?.isGroup,
-                participants: item?.participants,
-                currentUserId: currentUser?.id
-            });
+            console.log('🔍 Rendering conversation:', item);
 
             const conversationUser = getOtherParticipantDetails(
                 item?.participants,
@@ -151,12 +149,14 @@ function ChatScreenContent() {
 
             console.log('✅ Conversation user details:', conversationUser);
 
+            const recipientId = item.participants.filter((item: string) => item !== currentUser?.id)
+
             return (
                 <TouchableOpacity
                     style={[styles.conversationItem, { backgroundColor: theme.background, borderColor: theme.border }]}
                     onPress={() => {
                         if (item?.id) {
-                            router.push(`/(authenticated)/conversation/${item.id}`);
+                            router.push(`/(authenticated)/conversation/${recipientId}`);
                         }
                     }}
                     activeOpacity={0.85}
@@ -170,7 +170,7 @@ function ChatScreenContent() {
                                     resizeMode="cover"
                                 />
                                 {isUnread && (
-                                    <View style={[styles.unreadBadge, { backgroundColor: theme.tint }]}>
+                                    <View style={[styles.unreadBadge, { backgroundColor: theme.tint, borderWidth: 2, borderColor: theme.border }]}>
                                         <Text style={styles.unreadCount}>
                                             {(item?.unreadCount || 0) > 99 ? '99+' : (item?.unreadCount || 0)}
                                         </Text>
@@ -179,11 +179,12 @@ function ChatScreenContent() {
                             </View>
                         ) : (
                             <View style={[styles.avatar, { backgroundColor: theme.tint }]}>
-                                <Text style={styles.avatarText}>
+                                    {/* <Text style={styles.avatarText}>
                                     {item?.isGroup ? 'G' : conversationUser.name?.charAt(0)?.toUpperCase() || 'U'}
-                                </Text>
+                                </Text> */}
+                                    <AntDesign name='user' color={theme.background} size={34} />
                                 {isUnread && (
-                                    <View style={[styles.unreadBadge, { backgroundColor: theme.tint }]}>
+                                        <View style={[styles.unreadBadge, { backgroundColor: theme.tint, borderWidth: 2, borderColor: theme.background }]}>
                                         <Text style={styles.unreadCount}>
                                             {(item?.unreadCount || 0) > 99 ? '99+' : (item?.unreadCount || 0)}
                                         </Text>
@@ -222,7 +223,7 @@ function ChatScreenContent() {
                                 <Ionicons
                                     name={
                                         lastMessage?.status === 'queued' ? 'time' :
-                                            lastMessage?.status === 'sending' ? 'time' :
+                                            lastMessage?.status === 'sending' ? 'checkmark' :
                                                 lastMessage?.status === 'sent' ? 'checkmark' :
                                                     lastMessage?.status === 'delivered' ? 'checkmark-done' :
                                                         lastMessage?.status === 'read' ? 'checkmark-done' :
@@ -275,39 +276,33 @@ function ChatScreenContent() {
                     placeholder="Search conversations..."
                     placeholderTextColor={theme.textSecondary}
                     value={searchQuery}
-                    onChangeText={(text) => {
-                        console.log('🔍 Search input changed:', text);
-                        setSearchQuery(text);
-                    }}
-                    clearButtonMode="while-editing"
+                    onChangeText={(text) => setSearchQuery(text)}
+                    // clearButtonMode="while-editing"
                     returnKeyType="search"
                     autoCapitalize="none"
                     autoCorrect={false}
                     blurOnSubmit={false}
-                    enablesReturnKeyAutomatically={true}
+                    // enablesReturnKeyAutomatically={true}
                     keyboardType="default"
                     textContentType="none"
                     autoComplete="off"
                     spellCheck={false}
                 />
-                {searchQuery.length > 0 && (
+                {/* {searchQuery.length > 0 && (
                     <TouchableOpacity
-                        onPress={() => {
-                            console.log('🔍 Clearing search');
-                            setSearchQuery('');
-                        }}
+                        onPress={() => setSearchQuery('')}
                         style={styles.clearButton}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
                     </TouchableOpacity>
-                )}
+                )} */}
             </View>
-            {searchQuery.length > 0 && (
+            {/* {searchQuery.length > 0 && (
                 <Text style={[styles.searchResultsText, { color: theme.textSecondary }]}>
                     {filteredConversations.length} conversation{filteredConversations.length !== 1 ? 's' : ''} found
                 </Text>
-            )}
+            )} */}
         </View>
     );
 
@@ -326,22 +321,25 @@ function ChatScreenContent() {
                         <Text style={[styles.headerTitle, { color: theme.text }]}>
                             Messages
                         </Text>
-                        {safeTotalUnreadCount > 0 && (
+                        {/* {safeTotalUnreadCount > 0 && (
                             <View style={[styles.unreadIndicator, { backgroundColor: theme.tint }]}>
                                 <Text style={styles.unreadIndicatorText}>
                                     {safeTotalUnreadCount > 99 ? '99+' : safeTotalUnreadCount}
                                 </Text>
                             </View>
-                        )}
+                        )} */}
                     </View>
                     <View style={styles.headerRight}>
                         <TouchableOpacity
-                            style={[styles.headerButton, { backgroundColor: theme.card }]}
+                            style={[styles.headerButton, { backgroundColor: theme.card, borderWidth: .5, borderColor: theme.border }]}
                             onPress={() => router.push('/contacts')}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="add" size={20} color={theme.text} />
+                            <FontAwesome name="users" size={20} color={theme.text} />
                         </TouchableOpacity>
+                        <View style={{ position: 'absolute', bottom: 0 }}>
+                            <FontAwesome5 name="piggy-bank" size={12} color={theme.text} />
+                        </View>
                     </View>
                 </View>
             </View>
@@ -350,7 +348,7 @@ function ChatScreenContent() {
             <FlatList
                 data={filteredConversations}
                 renderItem={renderConversation}
-                keyExtractor={(item) => item?.id || Math.random().toString()}
+                keyExtractor={(item) => Math.random().toString()}
                 style={styles.conversationsList}
                 contentContainerStyle={[
                     filteredConversations?.length === 0 ? styles.emptyList : styles.conversationsContent,
@@ -435,10 +433,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
         elevation: 2,
     },
     searchContainer: {

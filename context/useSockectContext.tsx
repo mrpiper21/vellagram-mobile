@@ -10,7 +10,9 @@ interface SocketContextType {
   isConnected: boolean;
 }
 
-const SocketContext = createContext<SocketContextType | undefined>(undefined);
+export const SocketContext = createContext<SocketContextType | undefined>(
+  undefined
+);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isConnected, setIsConnected] = useState(false);
@@ -30,7 +32,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         path: "/socket.io/",
         transports: ["websocket", "polling"],
         autoConnect: true,
-        reconnection: true
+        reconnection: true,
       });
 
       socketRef.current.on("connect", () => {

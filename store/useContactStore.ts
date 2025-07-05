@@ -1,6 +1,5 @@
-import { IUser } from "@/@types/user-auth-types";
 import { normalizeIdentifiers } from "@/helpers/normalizeIdentifiers";
-import { checkPhoneNumberRegisteration, fetchAllUsers } from "@/services/contact.service";
+import { fetchAllUsers, initializeUserPhoneMap, isPhoneNumberRegistered, UserData } from "@/services/contact.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -23,7 +22,7 @@ interface ContactState {
   
   // Actions
   batchAddContacts: (contacts: Omit<ContactUser, 'lastChecked'>[]) => void;
-  updateFromUserList: (users: IUser[]) => void;
+  updateFromUserList: (users: UserData[]) => void;
   syncContactsInBackground: () => Promise<void>;
   checkPhoneRegistration: (phoneNumber: string) => Promise<boolean>;
 }
@@ -69,9 +68,9 @@ export const useContactStore = create<ContactState>()(
         }
       },
 
-      updateFromUserList: (users) => {
-        // Create optimized identifier map (phone -> user)
-        const userMap = new Map<string, IUser>();
+      updateFromUserList: (users: UserData[]) => {
+        // Create optimized identifier map (phone -> user) using normalizeIdentifiers
+        const userMap = new Map<string, UserData>();
         users.forEach(user => {
           normalizeIdentifiers(user.phone).forEach(id => userMap.set(id, user));
         });
@@ -79,9 +78,7 @@ export const useContactStore = create<ContactState>()(
         set(state => ({
           userIdentifierSet: new Set(userMap.keys()),
           contacts: state.contacts.map(contact => {
-            const contactIds = [
-              ...normalizeIdentifiers(contact.phoneNumber),
-            ];
+            const contactIds = normalizeIdentifiers(contact.phoneNumber);
             
             // Check if any contact ID matches a user phone
             const matchingPhone = contactIds.find(id => userMap.has(id));
@@ -101,6 +98,7 @@ export const useContactStore = create<ContactState>()(
           })
         }));
       },
+      
       syncContactsInBackground: async () => {
         const { isChecking, lastSyncTime, userIdentifierSet } = get();
         
@@ -111,9 +109,16 @@ export const useContactStore = create<ContactState>()(
         set({ isChecking: true });
 
         try {
-          if (!userIdentifierSet) {
-            const users = await fetchAllUsers();
+          // Initialize the efficient phone map with ETag support
+          const [phoneMap, wasModified] = await initializeUserPhoneMap();
+          
+          // Only update if data was modified
+          if (wasModified) {
+            const [users, , ] = await fetchAllUsers();
             get().updateFromUserList(users);
+            console.log("🔄 Updated contacts due to modified user data");
+          } else {
+            console.log("⏩ Skipped contact update - no data changes detected");
           }
           
           set({ lastSyncTime: Date.now() });
@@ -125,19 +130,13 @@ export const useContactStore = create<ContactState>()(
       },
 
       checkPhoneRegistration: async (phoneNumber) => {
-        const { userIdentifierSet } = get();
-        const cleanPhone = phoneNumber.replace(/\D/g, '');
-        const normalized = normalizeIdentifiers(cleanPhone);
-        
-        // First check local identifier set
-        if (userIdentifierSet && normalized.some(id => userIdentifierSet.has(id))) {
-          return true;
-        }
-        
-        // Fallback to API check
         try {
-          const result = await checkPhoneNumberRegisteration(cleanPhone);
-          return result.isResgistered;
+          // Ensure the phone map is initialized
+          await initializeUserPhoneMap();
+          
+          // Use O(1) hash map lookup instead of API call
+          const registeredUser = isPhoneNumberRegistered(phoneNumber);
+          return !!registeredUser;
         } catch (error) {
           console.error("Phone check error:", error);
           return false;
@@ -175,3 +174,21 @@ export const useContactActions = () => useContactStore(state => ({
   syncContactsInBackground: state.syncContactsInBackground,
   checkPhoneRegistration: state.checkPhoneRegistration
 }));
+
+// Efficient contact lookup by user ID
+export const useContactById = (userId: string) => {
+  return useContactStore(state => {
+    // Find contact by userData.id or userData._id
+    return state.contacts.find(contact => 
+      contact.userData?.id === userId || contact.userData?._id === userId
+    );
+  });
+};
+
+// Direct selector for non-hook usage
+export const getContactById = (userId: string) => {
+  const state = useContactStore.getState();
+  return state.contacts.find(contact => 
+    contact.userData?.id === userId || contact.userData?._id === userId
+  );
+};

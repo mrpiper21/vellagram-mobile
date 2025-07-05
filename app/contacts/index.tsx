@@ -5,6 +5,7 @@ import ContactSkeleton from '@/components/skeletons/ContactSkeleton';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useUserInactivity } from '@/context/UserInactivityContext';
 import { normalizeIdentifiers } from '@/helpers/normalizeIdentifiers';
+import { testPhoneNumberNormalization } from '@/services/contact.service';
 import { useContactStore } from '@/store/useContactStore';
 import { router } from 'expo-router';
 import * as SMS from 'expo-sms';
@@ -67,13 +68,21 @@ const ContactsScreen = () => {
     return map;
   }, [allUsers]);
 
-
   const { contacts: storedContacts, isChecking, syncContactsInBackground } = useContactStore();
   
   const deviceContacts = useMemo<ContactWithRegistration[]>(() => {
     return storedContacts.map(sc => {
-      const normalizedPhone = normalizeIdentifiers(sc.phoneNumber)[0];
-      const matchingUser = userMap.get(normalizedPhone);
+      const normalizedPhones = normalizeIdentifiers(sc.phoneNumber);
+      let matchingUser: IUser | undefined;
+
+      // Try to find a matching user with any of the normalized phone variations
+      for (const phone of normalizedPhones) {
+        const user = userMap.get(phone);
+        if (user) {
+          matchingUser = user;
+          break;
+        }
+      }
       
       return {
         id: sc.id,
@@ -187,16 +196,59 @@ const ContactsScreen = () => {
     loadContacts();
   }, []);
 
+  // Debug function to test phone number matching
+  const debugPhoneMatching = useCallback(() => {
+    console.log('🔍 Debugging phone number matching...');
+    console.log('📊 All users:', allUsers?.length || 0);
+    console.log('📱 Stored contacts:', storedContacts.length);
+    console.log('👥 Device contacts with registration:', deviceContacts.length);
+    console.log('✅ Registered contacts:', deviceContacts.filter(c => c.isRegistered).length);
+
+    // Test a few phone numbers from your user data
+    const testNumbers = [
+      '0245 420 66',  // Bernard Baah
+      '0246307984',   // Eli Salifu
+      '0597202772',   // danso danso
+      '02416775611',  // 402 Edte
+    ];
+
+    testNumbers.forEach(phone => {
+      testPhoneNumberNormalization(phone);
+    });
+  }, [allUsers, storedContacts, deviceContacts]);
+
+  // Force refresh contacts for debugging
+  const forceRefreshContacts = useCallback(async () => {
+    console.log('🔄 Force refreshing contacts...');
+    setLoading(true);
+    try {
+      // Clear any cached data and force a fresh fetch
+      await syncContactsInBackground();
+      console.log('✅ Force refresh completed');
+    } catch (err) {
+      console.error('❌ Force refresh failed:', err);
+      setError('Failed to refresh contacts');
+    } finally {
+      setLoading(false);
+    }
+  }, [syncContactsInBackground]);
+
   // Empty state handling
-  if (storedContacts.length === 0 && !loading) {
-    return (
-      <View style={[styles.container, styles.centerContent, { backgroundColor: appColors.background }]}>
-        <Text style={[styles.errorText, { color: appColors.text }]}>
-          {error || 'No contacts found. Please check your contact permissions.'}
-        </Text>
-      </View>
-    );
-  }
+  // if (storedContacts.length === 0 && !loading) {
+  //   return (
+  //     <View style={[styles.container, styles.centerContent, { backgroundColor: appColors.background }]}>
+  //       <Text style={[styles.errorText, { color: appColors.text }]}>
+  //         {error || 'No contacts found. Please check your contact permissions.'}
+  //       </Text>
+  //       <TouchableOpacity
+  //         style={[styles.debugButton, { backgroundColor: appColors.tint }]}
+  //         onPress={debugPhoneMatching}
+  //       >
+  //         <Text style={[styles.debugButtonText, { color: 'white' }]}>Debug Phone Matching</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   );
+  // }
 
   return (
     <View style={[styles.container, { backgroundColor: appColors.background }]}>
@@ -207,6 +259,7 @@ const ContactsScreen = () => {
         isChecking={isChecking}
       />
       
+
       {loading ? (
         <FlatList
           data={[1, 2, 3, 4, 5]}

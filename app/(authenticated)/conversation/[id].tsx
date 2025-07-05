@@ -1,259 +1,99 @@
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useUserInactivity } from "@/context/UserInactivityContext";
-import { getOtherParticipantDetails } from '@/helpers/conversationUtils';
-import { useSocketChat } from '@/hooks/useSocketChat';
-import { useChatStore, useConversation, useConversationMessages } from '@/store/useChatStore';
-import { useContactStore } from '@/store/useContactStore';
+import { getOtherParticipantDetails } from "@/helpers/conversationUtils";
+import { useConversationLogic } from '@/hooks/useConversationLogic';
+import { useChatStore } from '@/store/useChatStore';
+import { useContactById, useContactStore } from '@/store/useContactStore';
 import { useUserStore } from '@/store/useUserStore';
-import { Ionicons } from "@expo/vector-icons";
+import { User } from '@/types/conversation';
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import AnnouncementBanner from "./components/AnnouncementBanner";
+import React, { useMemo } from "react";
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { BackgroundPattern } from "./components/BackgroundPattern";
 import { GroupDetailsSheet } from "./components/GroupDetailsSheet";
 import { Header } from "./components/Header";
 import { MenuDropdown } from "./components/MenuDropdown";
+import { MessageInput } from "./components/MessageInput";
+import { MessagesList } from "./components/MessagesList";
 
 export default function ConversationScreen() {
-    // --- Hooks & State ---
     const { id: recipientId } = useLocalSearchParams<{ id: string }>();
-    // const recipientId = "1234"; // This is the other user's ID
     const theme = useAppTheme();
     const { user } = useUserStore((state) => state);
-
     const getConversationId = useChatStore(state => state.getConversationId);
 
     const conversationId = useMemo(
         () => (user?.id ? getConversationId(user.id, recipientId) : null),
-        [user?.id, recipientId, getConversationId]
+        [user?.id, recipientId]
     );
 
     if (!conversationId) {
-        return (
-            <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator />
-            </View>
-        );
+        return <LoadingScreen theme={theme} />;
     }
 
-    return <ConversationView
-        theme={theme}
-        conversationId={conversationId}
-        recipientId={recipientId}
-        user={user}
-    />;
+    return (
+        <ConversationView
+            theme={theme}
+            conversationId={conversationId}
+            recipientId={recipientId}
+            user={user as User | null}
+        />
+    );
 }
 
 interface ConversationViewProps {
-    theme: any; // Replace with a more specific theme type if available
+    theme: any;
     conversationId: string;
     recipientId: string;
-    user: any; // Replace with a specific User type if available
+    user: User | null;
 }
 
-// Extracted the main view to a new component to avoid conditional hook calls.
 const ConversationView = ({ theme, conversationId, recipientId, user }: ConversationViewProps) => {
-    const messages = useConversationMessages(recipientId);
-    const conversation = useConversation(recipientId);
     const { contacts } = useContactStore();
     const { allUsers } = useUserInactivity();
+    const recipientContact = useContactById(recipientId);
 
-    console.log("messagess ==== ", messages)
+    const {
+        messages,
+        participantDetails,
+        newMessage,
+        setNewMessage,
+        isSending,
+        isConnected,
+        flatListRef,
+        showMenu,
+        showDetails,
+        menuAnimation,
+        detailsAnimation,
+        toggleMenu,
+        toggleDetails,
+        handleMenuOption,
+        handleSendMessage,
+        handleChatPress,
+    } = useConversationLogic({ conversationId, recipientId, user });
 
-    console.log("conversation ----", conversation)
-
-    const { addMessage, markConversationAsRead, setActiveConversation, createConversation } = useChatStore((state) => state);
-    const { sendMessage: sendSocketMessage, isConnected } = useSocketChat();
-
-    const [newMessage, setNewMessage] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const flatListRef = useRef<FlatList>(null);
-    const [showMenu, setShowMenu] = useState(false);
-    const [showDetails, setShowDetails] = useState(false);
-    const menuAnimation = useRef(new Animated.Value(0)).current;
-    const detailsAnimation = useRef(new Animated.Value(0)).current;
-    // ruseSocketContext();
-
-    const randomElements = useMemo(() => (
-        [...Array(12)].map((_, index) => ({
-            id: index,
-            width: 20 + (index * 2) % 40,
-            height: 20 + (index * 3) % 40,
-            borderRadius: 10 + (index * 2) % 20,
-            top: (index * 7) % 100,
-            left: (index * 11) % 100,
-            rotate: (index * 30) % 360,
-        }))
-    ), []);
-
-    // Get participant details for header
-    const participantDetails = useMemo(() => {
-        if (conversation?.isGroup) {
-            return {
-                name: conversation.groupName || 'Group',
-                profile: conversation.groupAvatar || 'G',
-                id: conversation.id
-            };
-        }
-
-        const details = getOtherParticipantDetails(
-            recipientId,
-            user?.id,
-            contacts,
-            allUsers as any,
-        );
-
-        console.log('🔍 Participant details for header:', details);
-        return details;
-    }, [conversation, recipientId, user?.id, contacts, allUsers]);
-
-    // --- Effects ---
-    useEffect(() => {
-        if (!conversationId) return;
-        setActiveConversation(conversationId);
-        markConversationAsRead(conversationId);
-        return () => setActiveConversation(null);
-    }, [conversationId]);
-
-    // --- Handlers ---
-    const toggleMenu = () => {
-        console.log('🔍 toggleMenu called, current showMenu:', showMenu);
-        const toValue = showMenu ? 0 : 1;
-        const newShowMenu = !showMenu;
-        console.log('🔍 Setting showMenu to:', newShowMenu, 'animation toValue:', toValue);
-        setShowMenu(newShowMenu);
-        Animated.spring(menuAnimation, {
-            toValue,
-            useNativeDriver: true,
-            tension: 65,
-            friction: 11
-        }).start();
-    };
-
-    const toggleDetails = () => {
-        const toValue = showDetails ? 0 : 1;
-        setShowDetails(!showDetails);
-        Animated.spring(detailsAnimation, {
-            toValue,
-            useNativeDriver: true,
-            tension: 65,
-            friction: 11
-        }).start();
-    };
-
-    const handleMenuOption = (optionId: string) => {
-        toggleMenu();
-        switch (optionId) {
-            case 'details':
-                toggleDetails();
-                break;
-            case 'payment':
-                // Handle payment history
-                break;
-            case 'leave':
-                // Handle leave group
-                break;
-        }
-    };
-
-    const handleSendMessage = async () => {
-        if (!newMessage.trim() || !user?.id || !recipientId || !conversationId) return;
-
-        setIsSending(true);
-        try {
-            if (!messages) {
-                createConversation({
-                    participants: [user.id, recipientId],
-                    isGroup: false,
-                });
-            }
-
-            // Add message to store with appropriate status based on connection
-            const messageStatus = isConnected ? 'sending' : 'queued';
-            addMessage({
-                recipientId,
-                senderId: user.id,
-                content: newMessage.trim(),
-                type: 'text'
-            }, messageStatus);
-
-            // Send message via socket (will be queued if offline)
-            sendSocketMessage(recipientId, newMessage.trim(), 'text');
-            setNewMessage('');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to send message');
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    const handleChatPress = (memberId: string) => {
-        // router.push(`/chat/${memberId}`);
-    };
-
-    // --- Render Message ---
-    const renderMessage = ({ item }: { item: any }) => {
-        const isOwnMessage = item?.senderId === user?.id;
-        return (
-            <View style={[
-                styles.messageContainer,
-                isOwnMessage ? styles.ownMessage : styles.otherMessage
-            ]}>
-                <View style={[
-                    styles.messageBubble,
-                    {
-                        backgroundColor: isOwnMessage ? theme?.tint : theme?.card,
-                        // borderColor: theme.border
-                    }
-                ]}>
-                    <Text style={[
-                        styles.messageText,
-                        { color: isOwnMessage ? 'white' : theme.text }
-                    ]}>
-                        {item?.content}
-                    </Text>
-                    <View style={styles.messageFooter}>
-                        <Text style={[
-                            styles.messageTime,
-                            { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.icon }
-                        ]}>
-                            {new Date(item?.timestamp).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </Text>
-                        {isOwnMessage && (
-                            <Ionicons
-                                name={
-                                    item?.status === 'queued' ? 'time' :
-                                        item?.status === 'sending' ? 'time' :
-                                            item?.status === 'sent' ? 'checkmark' :
-                                                item?.status === 'delivered' ? 'checkmark-done' :
-                                                    item?.status === 'read' ? 'checkmark-done' :
-                                                        'close'
-                                }
-                                size={14}
-                                color={isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.icon}
-                                style={styles.statusIcon}
-                            />
-                        )}
-                    </View>
-                </View>
-            </View>
-        );
-    };
+    const conversationUser = getOtherParticipantDetails(
+        recipientId,
+        user?.id,
+        contacts,
+        allUsers || []
+    );
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={{ flex: 1 }}>
+            <BackgroundPattern theme={theme} />
             <Header
-                groupName={participantDetails.name}
-                groupAvatar={participantDetails.name?.charAt(0)?.toUpperCase() || 'U'}
+                groupName={conversationUser.name}
+                groupAvatar={conversationUser.name?.charAt(0)?.toUpperCase() || 'U'}
                 onMenuPress={toggleMenu}
                 profileUrl={participantDetails.profile || undefined}
-            />
-            <AnnouncementBanner
-                title="Announcement"
-                message="Next Repayment of GHS 200 due on 10th June"
+                recipientInfo={{
+                    name: conversationUser.name,
+                    id: recipientId,
+                    profile: conversationUser.profile,
+                    phoneNumber: recipientContact?.phoneNumber || '',
+                }}
             />
             <MenuDropdown
                 visible={showMenu}
@@ -269,222 +109,41 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                 animation={detailsAnimation}
                 onChatPress={handleChatPress}
             />
-            {/* Messages */}
-            <View style={[styles.messagesContainer, { backgroundColor: theme.background }]}>
-                <View style={[styles.backgroundPattern, { backgroundColor: theme.background }]}>
-                    <View style={styles.patternGrid}>
-                        {[...Array(6)].map((_, rowIndex) => (
-                            <View key={rowIndex} style={styles.patternRow}>
-                                {[...Array(8)].map((_, colIndex) => (
-                                    <View key={colIndex} style={[
-                                        styles.patternDot,
-                                        {
-                                            opacity: 0.1,
-                                            backgroundColor: theme.tint,
-                                            transform: [
-                                                { scale: (rowIndex + colIndex) % 2 === 0 ? 1 : 0.8 }
-                                            ]
-                                        }
-                                    ]} />
-                                ))}
-                            </View>
-                        ))}
-                    </View>
-                    <View style={styles.randomElements}>
-                        {randomElements.map((element) => (
-                            <View
-                                key={element.id}
-                                style={[
-                                    styles.randomElement,
-                                    {
-                                        backgroundColor: theme.tint,
-                                        opacity: 0.03,
-                                        width: element.width,
-                                        height: element.height,
-                                        borderRadius: element.borderRadius,
-                                        top: `${element.top}%`,
-                                        left: `${element.left}%`,
-                                        transform: [
-                                            { rotate: `${element.rotate}deg` }
-                                        ]
-                                    }
-                                ]}
-                            />
-                        ))}
-                    </View>
-                </View>
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    keyExtractor={(item) => item?.id || `msg-${item?.timestamp || Date.now()}`}
-                    renderItem={renderMessage}
-                    contentContainerStyle={styles.messagesList}
-                    showsVerticalScrollIndicator={false}
-                />
-            </View>
-            {/* Input Bar */}
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-                style={styles.keyboardAvoid}
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
             >
-                <View style={[styles.inputBar, { backgroundColor: theme.card }]}>
-                    <View style={[styles.inputContainer, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
-                        <TextInput
-                            style={[styles.input, { color: theme.text }]}
-                            placeholder="Type a message"
-                            placeholderTextColor={theme.icon}
-                            value={newMessage}
-                            onChangeText={setNewMessage}
-                            onSubmitEditing={handleSendMessage}
-                            returnKeyType="send"
-                            multiline
-                            maxLength={500}
-                            textAlignVertical="center"
+                {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}> */}
+                <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1 }}>
+                        <MessagesList
+                            messages={messages || []}
+                            flatListRef={flatListRef}
+                            theme={theme}
+                            user={user}
                         />
                     </View>
-                    <TouchableOpacity
-                        onPress={handleSendMessage}
-                        style={[
-                            styles.sendButton,
-                            {
-                                backgroundColor: newMessage.trim() && isConnected ? theme.tint : theme.card,
-                                borderColor: theme.border,
-                                opacity: isSending ? 0.6 : 1
-                            }
-                        ]}
-                        disabled={!newMessage?.trim() || isSending}
-                    >
-                        <Ionicons
-                            name={isSending ? "time" : "send"}
-                            size={20}
-                            color={newMessage?.trim() ? "white" : theme.icon}
+                    <View style={{ backgroundColor: theme.background }}>
+                        <MessageInput
+                            newMessage={newMessage}
+                            setNewMessage={setNewMessage}
+                            onSendMessage={handleSendMessage}
+                            isSending={isSending}
+                            isConnected={isConnected}
+                            theme={theme}
                         />
-                    </TouchableOpacity>
+                    </View>
                 </View>
+                {/* </TouchableWithoutFeedback> */}
             </KeyboardAvoidingView>
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         position: 'relative',
     },
-    messagesContainer: {
-        flex: 1,
-        position: 'relative',
-    },
-    backgroundPattern: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-    },
-    patternGrid: {
-        flex: 1,
-        justifyContent: 'space-around',
-        paddingVertical: 20,
-    },
-    patternRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 15,
-    },
-    patternDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    randomElements: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-    },
-    randomElement: {
-        position: 'absolute',
-    },
-    messagesList: {
-        padding: 16,
-    },
-    messageContainer: {
-        marginVertical: 4,
-    },
-    ownMessage: {
-        alignItems: 'flex-end',
-    },
-    otherMessage: {
-        alignItems: 'flex-start',
-    },
-    messageBubble: {
-        maxWidth: '80%',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
-        // borderWidth: 1,
-    },
-    messageText: {
-        fontSize: 16,
-        lineHeight: 20,
-    },
-    messageFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        marginTop: 4,
-    },
-    messageTime: {
-        fontSize: 12,
-    },
-    statusIcon: {
-        marginLeft: 4,
-    },
-    keyboardAvoid: {
-        width: '100%',
-    },
-    inputBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(0,0,0,0.1)',
-    },
-    inputContainer: {
-        flex: 1,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        minHeight: 40,
-        maxHeight: 100,
-    },
-    input: {
-        fontSize: 16,
-        padding: 0,
-        maxHeight: 80,
-    },
-    sendButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    errorText: {
-        textAlign: 'center',
-        marginTop: 50,
-        fontSize: 16,
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    }
 });
