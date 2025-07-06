@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 
 import TokenManager from '../utils/tokenManager';
 
 // API Configuration
-const API_BASE_URL = "http://172.20.10.8:2000"; // Local development server
+export const API_BASE_URL = "http://172.20.10.8:2000"; // Local development server
 const prisma = "http://172.20.10.8:2000";
 
 // Create axios instance with base configuration
@@ -55,19 +55,26 @@ apiClient.interceptors.response.use(
 
 
 export const API_ENDPOINTS = {
-    OTP: {
-        GENERATE: `${API_BASE_URL}/api/otp/generate`,
-        VERIFY: `${API_BASE_URL}/api/otp/validate`
-    },
-    AUTH: {
-        LOGIN: `${API_BASE_URL}/api/users/login`,
-        REGISTER: `${API_BASE_URL}/api/users/signup`,
-        ISREGISTERED: `${prisma}/api/users/check-phone`,
-        ALLUSERS: `${prisma}/api/users/get-all-user`
-    },
-    GROUP: {
-      CREATE: `${API_BASE_URL}/api/groups`,
-    }
+	OTP: {
+		GENERATE: `${API_BASE_URL}/api/otp/generate`,
+		VERIFY: `${API_BASE_URL}/api/otp/validate`,
+	},
+	AUTH: {
+		LOGIN: `${API_BASE_URL}/api/users/login`,
+		REGISTER: `${API_BASE_URL}/api/users/signup`,
+		ISREGISTERED: `${prisma}/api/users/check-phone`,
+		ALLUSERS: `${prisma}/api/users/get-all-user`,
+	},
+	GROUP: {
+		CREATE: `${API_BASE_URL}/api/groups`,
+	},
+	GROUPS: {
+		CREATE: `${API_BASE_URL}/api/groups`,
+		GET_USER_GROUPS: `${API_BASE_URL}/api/groups`,
+		GET_MESSAGES: `${API_BASE_URL}/api/groups/:groupId/chat`,
+		SEND_MESSAGE: `${API_BASE_URL}/api/groups/:groupId/chat`,
+		MARK_READ: `${API_BASE_URL}/api/groups/:groupId/chat/read`,
+	},
 };
 
 // API service functions using the configured axios instance

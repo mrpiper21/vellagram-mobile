@@ -1,117 +1,81 @@
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
-import { FlatList, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+	FlatList,
+	StatusBar,
+	StyleSheet,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View,
+} from "react-native";
 
 import GroupConversationCard from "@/app/components/cards/GroupConversationCard";
 import { useAppTheme } from "@/context/ThemeContext";
+// import { useGroupStore } from "@/store/useGroupStore";
+import { useGroupStore } from "@/app/store/useGroupStore";
 import { useUserStore } from "@/store/useUserStore";
 import CreateSavingsGroupSheet from "./CreateSavingsGroupSheet";
 
 const SavingsScreen: React.FC = () => {
 	const theme = useAppTheme();
-	const { user: currentUser } = useUserStore();
+	const { user } = useUserStore();
+	const { groups, isLoading, fetchGroups } = useGroupStore();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showCreateSheet, setShowCreateSheet] = useState(false);
 
-	// Sample group conversations data
-	const sampleGroupConversations = useMemo(() => [
-		{
-			id: "group1",
-			name: "Family Group",
-			lastMessage: {
-				content: "Happy birthday to everyone! 🎉",
-				timestamp: Date.now() - 1000 * 60 * 30, // 30 minutes ago
-				senderId: "user2",
-				senderName: "Mom",
-				status: "read"
-			},
-			unreadCount: 3,
-			participants: [
-				{ id: "user1", name: "Dad", profile: null },
-				{ id: "user2", name: "Mom", profile: null },
-				{ id: "user3", name: "Sister", profile: null },
-				{ id: "user4", name: "Brother", profile: null }
-			]
-		},
-		{
-			id: "group2",
-			name: "Work Team",
-			lastMessage: {
-				content: "Meeting at 3 PM today",
-				timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-				senderId: "user5",
-				senderName: "Manager",
-				status: "delivered"
-			},
-			unreadCount: 0,
-			participants: [
-				{ id: "user5", name: "Manager", profile: null },
-				{ id: "user6", name: "Colleague 1", profile: null },
-				{ id: "user7", name: "Colleague 2", profile: null },
-				{ id: "user8", name: "Colleague 3", profile: null },
-				{ id: "user9", name: "Colleague 4", profile: null }
-			]
-		},
-		{
-			id: "group3",
-			name: "College Friends",
-			lastMessage: {
-				content: "Who's up for coffee this weekend?",
-				timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
-				senderId: "user10",
-				senderName: "Alex",
-				status: "read"
-			},
-			unreadCount: 1,
-			participants: [
-				{ id: "user10", name: "Alex", profile: null },
-				{ id: "user11", name: "Sarah", profile: null },
-				{ id: "user12", name: "Mike", profile: null }
-			]
-		},
-		{
-			id: "group4",
-			name: "Book Club",
-			lastMessage: {
-				content: "Great discussion today! Next book suggestions?",
-				timestamp: Date.now() - 1000 * 60 * 60 * 24 * 2, // 2 days ago
-				senderId: "user13",
-				senderName: "Emma",
-				status: "read"
-			},
-			unreadCount: 0,
-			participants: [
-				{ id: "user13", name: "Emma", profile: null },
-				{ id: "user14", name: "John", profile: null },
-				{ id: "user15", name: "Lisa", profile: null },
-				{ id: "user16", name: "David", profile: null },
-				{ id: "user17", name: "Anna", profile: null },
-				{ id: "user18", name: "Tom", profile: null }
-			]
-		}
-	], []);
+	useEffect(() => {
+		fetchGroups();
+	}, [fetchGroups]);
 
-	// Filter conversations based on search query
-	const filteredConversations = useMemo(() => {
+	// Filter groups based on search query
+	const filteredGroups = useMemo(() => {
 		if (!searchQuery.trim()) {
-			return sampleGroupConversations;
+			return groups;
 		}
 
 		const query = searchQuery.toLowerCase().trim();
-		return sampleGroupConversations.filter((conversation) => {
-			const nameMatch = conversation.name.toLowerCase().includes(query);
-			const messageMatch = conversation.lastMessage?.content.toLowerCase().includes(query);
-			return nameMatch || messageMatch;
+		return groups.filter((group) => {
+			const nameMatch = group.name.toLowerCase().includes(query);
+			return nameMatch;
 		});
-	}, [sampleGroupConversations, searchQuery]);
+	}, [groups, searchQuery]);
 
 	const renderGroupConversationItem = ({ item }: { item: any }) => (
-		<GroupConversationCard
-			item={item}
-			theme={theme}
-			currentUser={currentUser}
-			participants={item.participants}
-		/>
+		<TouchableOpacity
+			onPress={() =>
+				router.push(`/(authenticated)/group-chat/${item.id}` as any)
+			}
+			activeOpacity={0.7}
+		>
+			<GroupConversationCard
+				item={{
+					id: item.id,
+					name: item.name,
+					lastMessage: {
+						content: "Group created successfully! Welcome to the group chat.",
+						timestamp: new Date(item.createdAt).getTime(),
+						senderId: item.admin,
+						senderName: "System",
+						status: "read",
+					},
+					unreadCount: 0,
+					participants: item.users.map((userId: string) => ({
+						id: userId,
+						name: "Member",
+						profile: null,
+					})),
+				}}
+				theme={theme}
+				currentUser={user}
+				participants={item.users.map((userId: string) => ({
+					id: userId,
+					name: "Member",
+					profile: null,
+				}))}
+			/>
+		</TouchableOpacity>
 	);
 
 	const renderEmptyState = () => (
@@ -119,21 +83,26 @@ const SavingsScreen: React.FC = () => {
 			{searchQuery.trim() ? (
 				<View style={styles.searchEmptyState}>
 					<Ionicons name="search" size={48} color={theme.textSecondary} />
-					<Text style={[styles.searchEmptyText, { color: theme.textSecondary }]}>
-						No group conversations found for "{searchQuery}"
+					<Text
+						style={[styles.searchEmptyText, { color: theme.textSecondary }]}
+					>
+						No groups found for "{searchQuery}"
 					</Text>
-					<Text style={[styles.searchEmptySubtext, { color: theme.textSecondary }]}>
-						Try searching for a different group name or message
+					<Text
+						style={[styles.searchEmptySubtext, { color: theme.textSecondary }]}
+					>
+						Try searching for a different group name
 					</Text>
 				</View>
 			) : (
 				<View style={styles.defaultEmptyState}>
 					<FontAwesome5 name="users" size={64} color={theme.textSecondary} />
 					<Text style={[styles.emptyTitle, { color: theme.text }]}>
-						No Group Conversations
+						No Groups Yet
 					</Text>
 					<Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-						Start a group chat to collaborate with friends and family
+						Create your first savings group to start collaborating with friends
+						and family
 					</Text>
 				</View>
 			)}
@@ -141,14 +110,21 @@ const SavingsScreen: React.FC = () => {
 	);
 
 	const renderSearchBar = () => (
-		<View style={[styles.searchContainer, { backgroundColor: theme.background }]}>
-			<View style={[styles.searchInputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+		<View
+			style={[styles.searchContainer, { backgroundColor: theme.background }]}
+		>
+			<View
+				style={[
+					styles.searchInputContainer,
+					{ backgroundColor: theme.card, borderColor: theme.border },
+				]}
+			>
 				<View style={styles.searchIconContainer}>
 					<Ionicons name="search" size={20} color={theme.textSecondary} />
 				</View>
 				<TextInput
 					style={[styles.searchInput, { color: theme.text }]}
-					placeholder="Search group conversations..."
+					placeholder="Search groups..."
 					placeholderTextColor={theme.textSecondary}
 					value={searchQuery}
 					onChangeText={setSearchQuery}
@@ -163,7 +139,11 @@ const SavingsScreen: React.FC = () => {
 						onPress={() => setSearchQuery("")}
 						hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
 					>
-						<Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+						<Ionicons
+							name="close-circle"
+							size={20}
+							color={theme.textSecondary}
+						/>
 					</TouchableOpacity>
 				)}
 			</View>
@@ -176,8 +156,9 @@ const SavingsScreen: React.FC = () => {
 
 	const handleCreateSavingsGroup = (data: any) => {
 		console.log("Creating savings group:", data);
-		// TODO: Implement savings group creation logic
-		// setShowCreateSheet(false);
+		// Refresh groups after creation
+		fetchGroups();
+		setShowCreateSheet(false);
 	};
 
 	const handleCloseCreateSheet = () => {
@@ -191,14 +172,14 @@ const SavingsScreen: React.FC = () => {
 				backgroundColor={theme.background}
 				translucent={false}
 			/>
-			
+
 			<FlatList
-				data={filteredConversations}
+				data={filteredGroups}
 				renderItem={renderGroupConversationItem}
 				keyExtractor={(item) => item.id}
 				style={styles.conversationsList}
 				contentContainerStyle={[
-					filteredConversations.length === 0
+					filteredGroups.length === 0
 						? styles.emptyList
 						: styles.conversationsContent,
 				]}
@@ -209,6 +190,8 @@ const SavingsScreen: React.FC = () => {
 				keyboardDismissMode="none"
 				bounces={true}
 				overScrollMode="never"
+				refreshing={isLoading}
+				onRefresh={fetchGroups}
 			/>
 
 			<TouchableOpacity
@@ -251,6 +234,7 @@ const styles = StyleSheet.create({
 		paddingVertical: 16,
 		borderBottomWidth: 0.5,
 		borderBottomColor: "rgba(0,0,0,0.1)",
+		minWidth: 410,
 	},
 	searchInputContainer: {
 		flexDirection: "row",

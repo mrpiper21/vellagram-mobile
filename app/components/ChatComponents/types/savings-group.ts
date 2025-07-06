@@ -1,9 +1,12 @@
+import { IUser } from "@/@types/user-auth-types";
+
 export interface Contact {
 	id: string;
 	name: string;
 	phone?: string;
 	email?: string;
 	profile?: string;
+	userData?: IUser;
 }
 
 export interface SavingsGroupData {

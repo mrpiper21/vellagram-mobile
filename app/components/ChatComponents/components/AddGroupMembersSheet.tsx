@@ -1,5 +1,5 @@
 import { AntDesign, Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	Dimensions,
 	FlatList,
@@ -12,7 +12,10 @@ import {
 	View,
 } from "react-native";
 
+import { IUser } from "@/@types/user-auth-types";
 import { useAppTheme } from "@/context/ThemeContext";
+import { useUserInactivity } from "@/context/UserInactivityContext";
+import { normalizeIdentifiers } from "@/helpers/normalizeIdentifiers";
 import { useContactStore } from "@/store/useContactStore";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -23,6 +26,7 @@ interface Contact {
 	phone?: string;
 	email?: string;
 	profile?: string;
+	userData?: IUser;
 }
 
 interface AddGroupMembersSheetProps {
@@ -40,6 +44,7 @@ const AddGroupMembersSheet: React.FC<AddGroupMembersSheetProps> = ({
 }) => {
 	const theme = useAppTheme();
 	const { contacts } = useContactStore();
+	const { allUsers } = useUserInactivity();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [localSelectedContacts, setLocalSelectedContacts] = useState<Contact[]>(selectedContacts);
 	
@@ -48,15 +53,53 @@ const AddGroupMembersSheet: React.FC<AddGroupMembersSheetProps> = ({
 		setLocalSelectedContacts(selectedContacts);
 	}, [selectedContacts]);
 
-	const registeredContacts = contacts
-		.filter((c) => c.isRegistered)
-		.map((c) => ({
-			id: c.id,
-			name: c.name || c.phoneNumber,
-			phone: c.phoneNumber,
-			profile: c.avatar || undefined,
-			email: c.userData?.email || undefined,
-		}));
+	// Create user map for efficient lookup (same logic as ContactsScreen)
+	const userMap = useMemo(() => {
+		const map = new Map<string, IUser>();
+		if (!allUsers) return map;
+
+		allUsers.forEach(user => {
+			const normalizedNumbers = normalizeIdentifiers(user.phone);
+			normalizedNumbers.forEach(num => {
+				if (!map.has(num)) {
+					map.set(num, user);
+				}
+			});
+		});
+		return map;
+	}, [allUsers]);
+
+	// Calculate registered contacts using the same logic as ContactsScreen
+	const registeredContacts = useMemo(() => {
+		return contacts
+			.map(sc => {
+				const normalizedPhones = normalizeIdentifiers(sc.phoneNumber);
+				let matchingUser: IUser | undefined;
+
+				// Try to find a matching user with any of the normalized phone variations
+				for (const phone of normalizedPhones) {
+					const user = userMap.get(phone);
+					if (user) {
+						matchingUser = user;
+						break;
+					}
+				}
+
+				// Only include contacts that are actually registered
+				if (matchingUser) {
+					return {
+						id: sc.id,
+						name: sc.name || sc.phoneNumber,
+						phone: sc.phoneNumber,
+						profile: sc.avatar || undefined,
+						email: matchingUser.email || undefined,
+						userData: matchingUser,
+					} as Contact;
+				}
+				return null;
+			})
+			.filter((contact): contact is Contact => contact !== null);
+	}, [contacts, userMap]);
 
 	// Filter contacts based on search query
 	const filteredContacts = registeredContacts.filter((contact) =>

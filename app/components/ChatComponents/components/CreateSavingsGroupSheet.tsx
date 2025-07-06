@@ -1,23 +1,28 @@
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+	Animated,
+	Dimensions,
+	KeyboardAvoidingView,
+	Modal,
+	Platform,
+	ScrollView,
+	StyleSheet,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View,
 } from "react-native";
 
+import { useGroupStore } from "@/app/store/useGroupStore";
 import { useAppTheme } from "@/context/ThemeContext";
 import { CreateGroup } from "@/services/group.service";
 import { useUserStore } from "@/store/useUserStore";
-import { Contact, SAVING_TYPES, SavingsGroupData } from "../types/savings-group";
+import {
+	Contact,
+	SAVING_TYPES,
+	SavingsGroupData,
+} from "../types/savings-group";
 import AddGroupMembersSheet from "./AddGroupMembersSheet";
 import GroupCreationConfirmation from "./GroupCreationConfirmation";
 import SavingTypeSelector from "./SavingTypeSelector";
@@ -50,9 +55,11 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 	const [selectedSavingType, setSelectedSavingType] = useState<string>("");
 	const [showMembersSheet, setShowMembersSheet] = useState(false);
 	const [showConfirmation, setShowConfirmation] = useState(false);
-	const [createdGroupData, setCreatedGroupData] = useState<SavingsGroupData | null>(null);
+	const [createdGroupData, setCreatedGroupData] =
+		useState<SavingsGroupData | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
-	const {user} = useUserStore((state) => state)
+	const { user } = useUserStore((state) => state);
+	const { addGroup } = useGroupStore();
 	const spinValue = useRef(new Animated.Value(0)).current;
 
 	// Spinner animation
@@ -72,11 +79,11 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 
 	const spin = spinValue.interpolate({
 		inputRange: [0, 1],
-		outputRange: ['0deg', '360deg'],
+		outputRange: ["0deg", "360deg"],
 	});
 
 	const handleInputChange = (field: keyof SavingsGroupData, value: string) => {
-		setFormData(prev => ({ ...prev, [field]: value }));
+		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handleSavingTypeSelect = (typeId: string) => {
@@ -84,32 +91,62 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 		handleInputChange("savingType", typeId);
 	};
 
-	const handleCreate = async() => {
-		if (formData.groupName.trim() && formData.targetAmount.trim() && formData.savingType) {
+	const handleCreate = async () => {
+		if (
+			formData.groupName.trim() &&
+			formData.targetAmount.trim() &&
+			formData.savingType
+		) {
 			setIsLoading(true);
-			
-			try {
-				let _members: string[] = []
 
-				for(let i=0; i < formData.members.length; i++){
-					_members.push(formData.members[i].id);
+			try {
+				let _members: string[] = [];
+
+				for (let i = 0; i < formData.members.length; i++) {
+					// Extract the actual user ID from userData instead of using the contact ID
+					const member = formData.members[i];
+					const userId = member.userData?.id;
+
+					if (userId) {
+						_members.push(userId);
+					} else {
+						console.warn(`⚠️ No user ID found for member: ${member.name}`);
+					}
 				}
 
 				console.log("🔐 Group Creation - User token:", user?.token);
 				console.log("🔐 Group Creation - User ID:", user?.id);
-				console.log("member ------", _members, "token: ",user?.token)
-				console.log("Creating group with data:", {name: formData.groupName, userIds: [..._members, user?.id as string]})
-				
-				const response = await CreateGroup({name: formData.groupName, userIds: [..._members, user?.id as string], token: user?.token as string})
+				console.log("member ------", _members, "token: ", user?.token);
+				console.log("Creating group with data:", {
+					name: formData.groupName,
+					userIds: [..._members, user?.id as string],
+				});
 
-				console.log("API Response:", response)
+				const response = await CreateGroup({
+					name: formData.groupName,
+					userIds: [..._members, user?.id as string],
+					token: user?.token as string,
+				});
 
-				if(response){
+				console.log("API Response:", response);
+
+				if (response) {
+					// Add the new group to the store
+					const newGroup = {
+						id: response.groupId,
+						name: response.name,
+						admin: response.admin,
+						users: response.users,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					};
+					addGroup(newGroup);
+
 					// Only call onCreate and show confirmation after successful API call
 					onCreate(formData);
 					setCreatedGroupData(formData);
 					setShowConfirmation(true);
-					
+
 					// Reset form after successful creation
 					setFormData({
 						groupName: "",
@@ -121,11 +158,11 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 					});
 					setSelectedSavingType("");
 				} else {
-					console.error('Group creation failed - no response received');
+					console.error("Group creation failed - no response received");
 					// You can show an error message to the user here
 				}
 			} catch (error) {
-				console.error('Error creating group:', error);
+				console.error("Error creating group:", error);
 				// You can add error handling here (show toast, alert, etc.)
 			} finally {
 				setIsLoading(false);
@@ -139,7 +176,7 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 	};
 
 	const handleMembersConfirm = (selectedContacts: Contact[]) => {
-		setFormData(prev => ({ ...prev, members: selectedContacts }));
+		setFormData((prev) => ({ ...prev, members: selectedContacts }));
 		setShowMembersSheet(false);
 	};
 
@@ -148,11 +185,14 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 	};
 
 	const handleRemoveMember = (memberId: string) => {
-		const updatedMembers = formData.members.filter(m => m.id !== memberId);
-		setFormData(prev => ({ ...prev, members: updatedMembers }));
+		const updatedMembers = formData.members.filter((m) => m.id !== memberId);
+		setFormData((prev) => ({ ...prev, members: updatedMembers }));
 	};
 
-	const isFormValid = formData.groupName.trim() && formData.targetAmount.trim() && formData.savingType;
+	const isFormValid =
+		formData.groupName.trim() &&
+		formData.targetAmount.trim() &&
+		formData.savingType;
 
 	return (
 		<Modal
@@ -178,39 +218,67 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 									<Ionicons name="close" size={24} color={theme.text} />
 								</TouchableOpacity>
 							</View>
-							<View style={[styles.headerLine, { backgroundColor: theme.border }]} />
+							<View
+								style={[styles.headerLine, { backgroundColor: theme.border }]}
+							/>
 						</View>
 
 						{/* Content */}
-						<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+						<ScrollView
+							style={styles.content}
+							showsVerticalScrollIndicator={false}
+						>
 							{/* Group Name */}
 							<View style={styles.inputGroup}>
-								<Text style={[styles.label, { color: theme.text }]}>Group Name *</Text>
+								<Text style={[styles.label, { color: theme.text }]}>
+									Group Name *
+								</Text>
 								<TextInput
-									style={[styles.textInput, { 
-										backgroundColor: theme.card, 
-										borderColor: theme.border,
-										color: theme.text 
-									}]}
+									style={[
+										styles.textInput,
+										{
+											backgroundColor: theme.card,
+											borderColor: theme.border,
+											color: theme.text,
+										},
+									]}
 									placeholder="Enter group name"
 									placeholderTextColor={theme.textSecondary}
 									value={formData.groupName}
-									onChangeText={(value) => handleInputChange("groupName", value)}
+									onChangeText={(value) =>
+										handleInputChange("groupName", value)
+									}
 									maxLength={50}
 								/>
 							</View>
 
 							{/* Target Amount */}
 							<View style={styles.inputGroup}>
-								<Text style={[styles.label, { color: theme.text }]}>Target Amount *</Text>
-								<View style={[styles.amountInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
-									<Text style={[styles.currencySymbol, { color: theme.textSecondary }]}>$</Text>
+								<Text style={[styles.label, { color: theme.text }]}>
+									Target Amount *
+								</Text>
+								<View
+									style={[
+										styles.amountInput,
+										{ backgroundColor: theme.card, borderColor: theme.border },
+									]}
+								>
+									<Text
+										style={[
+											styles.currencySymbol,
+											{ color: theme.textSecondary },
+										]}
+									>
+										$
+									</Text>
 									<TextInput
 										style={[styles.amountTextInput, { color: theme.text }]}
 										placeholder="0.00"
 										placeholderTextColor={theme.textSecondary}
 										value={formData.targetAmount}
-										onChangeText={(value) => handleInputChange("targetAmount", value)}
+										onChangeText={(value) =>
+											handleInputChange("targetAmount", value)
+										}
 										keyboardType="numeric"
 									/>
 								</View>
@@ -218,7 +286,9 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 
 							{/* Saving Type */}
 							<View style={styles.inputGroup}>
-								<Text style={[styles.label, { color: theme.text }]}>Saving Type *</Text>
+								<Text style={[styles.label, { color: theme.text }]}>
+									Saving Type *
+								</Text>
 								<SavingTypeSelector
 									savingTypes={SAVING_TYPES}
 									selectedType={selectedSavingType}
@@ -228,17 +298,24 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 
 							{/* Description */}
 							<View style={styles.inputGroup}>
-								<Text style={[styles.label, { color: theme.text }]}>Description</Text>
+								<Text style={[styles.label, { color: theme.text }]}>
+									Description
+								</Text>
 								<TextInput
-									style={[styles.textArea, { 
-										backgroundColor: theme.card, 
-										borderColor: theme.border,
-										color: theme.text 
-									}]}
+									style={[
+										styles.textArea,
+										{
+											backgroundColor: theme.card,
+											borderColor: theme.border,
+											color: theme.text,
+										},
+									]}
 									placeholder="Describe your savings goal..."
 									placeholderTextColor={theme.textSecondary}
 									value={formData.description}
-									onChangeText={(value) => handleInputChange("description", value)}
+									onChangeText={(value) =>
+										handleInputChange("description", value)
+									}
 									multiline
 									numberOfLines={4}
 									maxLength={200}
@@ -247,26 +324,43 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 
 							{/* Visibility */}
 							<View style={styles.inputGroup}>
-								<Text style={[styles.label, { color: theme.text }]}>Visibility</Text>
+								<Text style={[styles.label, { color: theme.text }]}>
+									Visibility
+								</Text>
 								<VisibilityToggle
 									visibility={formData.visibility}
-									onChange={(visibility) => handleInputChange("visibility", visibility)}
+									onChange={(visibility) =>
+										handleInputChange("visibility", visibility)
+									}
 								/>
 							</View>
 
 							{/* Add Members Button */}
 							<View style={styles.inputGroup}>
 								<TouchableOpacity
-									style={[styles.addMembersButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+									style={[
+										styles.addMembersButton,
+										{ backgroundColor: theme.card, borderColor: theme.border },
+									]}
 									onPress={handleOpenMembersSheet}
 								>
 									<View style={styles.addMembersContent}>
-										<FontAwesome5 name="users" size={16} color={theme.textSecondary} />
-										<Text style={[styles.addMembersText, { color: theme.text }]}>
+										<FontAwesome5
+											name="users"
+											size={16}
+											color={theme.textSecondary}
+										/>
+										<Text
+											style={[styles.addMembersText, { color: theme.text }]}
+										>
 											Add Group Members
 										</Text>
 									</View>
-									<Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+									<Ionicons
+										name="chevron-forward"
+										size={20}
+										color={theme.textSecondary}
+									/>
 								</TouchableOpacity>
 							</View>
 
@@ -283,7 +377,10 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 								style={[
 									styles.createButton,
 									{
-										backgroundColor: isFormValid && !isLoading ? theme.tint : theme.textSecondary,
+										backgroundColor:
+											isFormValid && !isLoading
+												? theme.tint
+												: theme.textSecondary,
 										opacity: isLoading ? 0.7 : 1,
 									},
 								]}
@@ -292,10 +389,13 @@ const CreateSavingsGroupSheet: React.FC<CreateSavingsGroupSheetProps> = ({
 							>
 								{isLoading ? (
 									<View style={styles.loadingContainer}>
-										<Animated.View style={[styles.spinner, { transform: [{ rotate: spin }] }]} />
-										<Text style={styles.createButtonText}>
-											Creating...
-										</Text>
+										<Animated.View
+											style={[
+												styles.spinner,
+												{ transform: [{ rotate: spin }] },
+											]}
+										/>
+										<Text style={styles.createButtonText}>Creating...</Text>
 									</View>
 								) : (
 									<Text style={styles.createButtonText}>
