@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from "@/config/api";
 import { useTheme } from "@/hooks/useTheme";
 import { useUserStore } from "@/store/useUserStore";
+import TokenManager from "@/utils/tokenManager";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { router } from "expo-router";
@@ -17,12 +18,12 @@ import {
     Text,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    View
+    View,
 } from "react-native";
 import { OtpInput } from "react-native-otp-entry";
 import useFormStore from "../store/useFormStore";
 
-const RESEND_TIMER = 60; // 60 seconds
+const RESEND_TIMER = 60;
 
 const OtpAuthScreen = () => {
     const { theme } = useTheme();
@@ -103,6 +104,7 @@ const OtpAuthScreen = () => {
         setError("");
 
         try {
+            console.log("🔐 OTP Verification - Using token:", formValues.user.token);
             const response = await axios.post(API_ENDPOINTS.OTP.VERIFY, {
                 email: formValues.user.user.email,
                 otp: otpCode,
@@ -114,12 +116,18 @@ const OtpAuthScreen = () => {
             });
 
             if (response.data.success) {
-                setUser(formValues.user.user);
+                // Set user with token included
+                setUser({
+                    ...formValues.user.user,
+                    token: formValues.user.token
+                });
                 showSuccessModalWithAnimation();
                 clearForm();
 
-                // Delay navigation to show success modal
                 setTimeout(() => {
+                    TokenManager.setToken(formValues.user.token);
+                    console.log("✅ Token set in TokenManager:", formValues.user.token);
+                    console.log("✅ User set in store with token");
                     router.replace("/(authenticated)/(tabs)");
                 }, 1500);
             } else {

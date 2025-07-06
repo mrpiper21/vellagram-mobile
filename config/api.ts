@@ -1,6 +1,58 @@
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import TokenManager from '../utils/tokenManager';
+
 // API Configuration
 const API_BASE_URL = "http://172.20.10.8:2000"; // Local development server
 const prisma = "http://172.20.10.8:2000";
+
+// Create axios instance with base configuration
+const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add bearer token
+apiClient.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    // Get token from storage
+    const token = await TokenManager.getToken();
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("🔐 Axios Interceptor - Token added to request:", token.substring(0, 20) + "...");
+    } else {
+      console.log("⚠️ Axios Interceptor - No token found in storage");
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle authentication errors
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => {
+    return response;
+  },
+  async (error) => {
+    // Handle 401/403 errors - token expired or invalid
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Clear token and user data
+      await TokenManager.clearAuth();
+      // You can also trigger a navigation to login screen here
+      // navigation.navigate('Login');
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+
 
 export const API_ENDPOINTS = {
     OTP: {
@@ -13,29 +65,87 @@ export const API_ENDPOINTS = {
         ISREGISTERED: `${prisma}/api/users/check-phone`,
         ALLUSERS: `${prisma}/api/users/get-all-user`
     },
+    GROUP: {
+      CREATE: `${API_BASE_URL}/api/groups`,
+    }
 };
 
+// API service functions using the configured axios instance
+export const apiService = {
+  // Auth endpoints
+  login: async (credentials: { email: string; password: string }) => {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    
+    // Store token and user data on successful login
+    if (response.data.token) {
+      await TokenManager.setToken(response.data.token);
+      if (response.data.user) {
+        await TokenManager.setUserData(response.data.user);
+      }
+    }
+    
+    return response.data;
+  },
 
-// export async function syncUnregisteredContacts() {
-//   const contacts = useContactStore.getState().contacts;
-//   const unregistered = contacts.filter(c => !c.isRegistered);
-//   if (unregistered.length === 0) return;
+  register: async (userData: { email: string; password: string; name: string }) => {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData);
+    
+    // Store token and user data on successful registration
+    if (response.data.token) {
+      await TokenManager.setToken(response.data.token);
+      if (response.data.user) {
+        await TokenManager.setUserData(response.data.user);
+      }
+    }
+    
+    return response.data;
+  },
 
-//   const phoneNumbers = unregistered.map(c => c.phoneNumber);
-//   const registeredNow = await checkContactsRegistration(phoneNumbers);
+  logout: async () => {
+    await TokenManager.clearAuth();
+  },
 
-//   if (registeredNow.length > 0) {
-//     useContactStore.getState().updateContactsRegistration(registeredNow);
-//   }
-// }
+  checkPhoneRegistration: async (phoneNumber: string) => {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.ISREGISTERED, { phoneNumber });
+    return response.data;
+  },
 
+  getAllUsers: async () => {
+    const response = await apiClient.get(API_ENDPOINTS.AUTH.ALLUSERS);
+    return response.data;
+  },
+
+  // OTP endpoints
+  generateOTP: async (phoneNumber: string) => {
+    const response = await apiClient.post(API_ENDPOINTS.OTP.GENERATE, { phoneNumber });
+    return response.data;
+  },
+
+  verifyOTP: async (phoneNumber: string, otp: string) => {
+    const response = await apiClient.post(API_ENDPOINTS.OTP.VERIFY, { phoneNumber, otp });
+    
+    // Store token and user data on successful OTP verification
+    if (response.data.token) {
+      await TokenManager.setToken(response.data.token);
+      if (response.data.user) {
+        await TokenManager.setUserData(response.data.user);
+      }
+    }
+    
+    return response.data;
+  },
+
+  // Group endpoints
+  createGroup: async (groupData: any) => {
+    const response = await apiClient.post(API_ENDPOINTS.GROUP.CREATE, groupData);
+    return response.data;
+  },
+};
+
+// Legacy function for backward compatibility
 export async function checkContactsRegistration(phoneNumbers: string[]): Promise<string[]> {
-  // Example API call (adjust endpoint as needed)
-  const res = await fetch('/api/contacts/check-registration', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phoneNumbers }),
-  });
-  const data = await res.json();
-  return data.registered; // Adjust based on your API response
+  const response = await apiClient.post('/api/contacts/check-registration', { phoneNumbers });
+  return response.data.registered;
 }
+
+export default apiClient;

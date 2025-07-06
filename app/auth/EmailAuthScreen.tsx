@@ -95,13 +95,14 @@ const EmailAuthScreen = () => {
                 password: password,
             });
 
-            if (response.data.user) {
+            if (response.data.user && response.data.token) {
+                console.log("✅ Login successful - Token received:", response.data.token);
                 setFormValue("user", {
                     user: {
                         ...response.data.user,
                         password
                     },
-                    token: response.data.user.token
+                    token: response.data.token
                 });
 
                 router.push({

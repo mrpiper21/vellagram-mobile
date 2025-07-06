@@ -63,13 +63,14 @@ const RegisterScreen = () => {
 
             const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, registrationData);
 
-            if (response.data.success) {
+            if (response.data.success && response.data.token) {
+                console.log("✅ Registration successful - Token received:", response.data.token);
                 setFormValue("user", {
                     user: {
                         ...response.data.user,
                         password: formData.password
                     },
-                    token: response.data.user.token
+                    token: response.data.token
                 })
                 router.push({
                     pathname: "/auth/OtpAuthScreen",
