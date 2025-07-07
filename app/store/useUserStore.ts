@@ -1,3 +1,4 @@
+import TokenManager from "@/utils/tokenManager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -9,6 +10,7 @@ interface UserState {
     setUser: (user: User) => void;
     updateUser: (updates: Partial<User>) => void;
     logout: () => void;
+    getToken: () => Promise<string | null>;
 }
 
 const initialState = {
@@ -27,6 +29,9 @@ export const useUserStore = create<UserState>()(
                     isAuthenticated: true
                 })),
             logout: () => set(() => initialState),
+            getToken: async () => {
+                return await TokenManager.getToken();
+            },
         }),
         {
             name: "user-storage",

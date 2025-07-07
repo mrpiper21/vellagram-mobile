@@ -41,11 +41,13 @@ export const fetchAllUsers = async (): Promise<[UserData[], boolean, boolean]> =
       validateStatus: (status) => status === 200 || status === 304,
     });
 
-    if (response.status === 304) {
-      // Not Modified - use cached data, no processing needed
-      console.log("📱 Server returned 304 - using cached users data");
-      return [cachedUsers, false, true];
-    }
+    console.log("all user response---", response.status);
+
+		if (response.status === 304) {
+			console.log("all user response---");
+			console.log("📱 Server returned 304 - using cached users data");
+			return [cachedUsers, false, true];
+		}
 
     if (response.data.success) {
       // New/modified data received
