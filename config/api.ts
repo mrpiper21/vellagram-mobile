@@ -70,7 +70,7 @@ export const API_ENDPOINTS = {
 	},
 	GROUPS: {
 		CREATE: `${API_BASE_URL}/api/groups`,
-		GET_USER_GROUPS: `${API_BASE_URL}/api/groups`,
+		GET_USER_GROUPS: `${API_BASE_URL}/api/groups/user-groups`,
 		GET_MESSAGES: `${API_BASE_URL}/api/groups/:groupId/chat`,
 		SEND_MESSAGE: `${API_BASE_URL}/api/groups/:groupId/chat`,
 		MARK_READ: `${API_BASE_URL}/api/groups/:groupId/chat/read`,

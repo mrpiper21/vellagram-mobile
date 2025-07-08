@@ -1,5 +1,5 @@
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Link } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
 	FlatList,
@@ -42,41 +42,48 @@ const SavingsScreen: React.FC = () => {
 		});
 	}, [groups, searchQuery]);
 
-	const renderGroupConversationItem = ({ item }: { item: any }) => (
-		<TouchableOpacity
-			onPress={() =>
-				router.push(`/(authenticated)/group-chat/${item.id}` as any)
-			}
-			activeOpacity={0.7}
-		>
-			<GroupConversationCard
-				item={{
-					id: item.id,
-					name: item.name,
-					lastMessage: {
-						content: "Group created successfully! Welcome to the group chat.",
-						timestamp: new Date(item.createdAt).getTime(),
-						senderId: item.admin,
-						senderName: "System",
-						status: "read",
-					},
-					unreadCount: 0,
-					participants: item.users.map((userId: string) => ({
-						id: userId,
-						name: "Member",
-						profile: null,
-					})),
-				}}
-				theme={theme}
-				currentUser={user}
-				participants={item.users.map((userId: string) => ({
-					id: userId,
-					name: "Member",
-					profile: null,
-				}))}
-			/>
-		</TouchableOpacity>
-	);
+	console.log("groups-----", groups);
+
+	const renderGroupConversationItem = ({ item }: { item: any }) => {
+		console.log("navigating to id -------", item?.id)
+		return (
+			<Link href={`/(authenticated)/group-chat/${item.id}` as any} asChild>
+				<TouchableOpacity
+					activeOpacity={0.7}
+					onPress={() => {
+						console.log("TouchableOpacity pressed for group:", item.id);
+					}}
+				>
+					<GroupConversationCard
+						item={{
+							id: item.id,
+							name: item.name,
+							lastMessage: {
+								content: "Group created successfully! Welcome to the group chat.",
+								timestamp: new Date(item?.createdAt).getTime(),
+								senderId: item.admin,
+								senderName: "System",
+								status: "read",
+							},
+							unreadCount: 0,
+							participants: item?.members.map((userId: string) => ({
+								id: userId,
+								name: "Member",
+								profile: null,
+							})),
+						}}
+						theme={theme}
+						currentUser={user}
+						participants={item?.members.map((userId: string) => ({
+							id: userId,
+							name: "Member",
+							profile: null,
+						}))}
+					/>
+				</TouchableOpacity>
+			</Link>
+		)
+	}
 
 	const renderEmptyState = () => (
 		<View style={styles.emptyStateContainer}>
@@ -176,7 +183,7 @@ const SavingsScreen: React.FC = () => {
 			<FlatList
 				data={filteredGroups}
 				renderItem={renderGroupConversationItem}
-				keyExtractor={(item) => item.id}
+				keyExtractor={(item) => item?.id}
 				style={styles.conversationsList}
 				contentContainerStyle={[
 					filteredGroups.length === 0
