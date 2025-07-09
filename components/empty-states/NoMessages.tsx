@@ -1,9 +1,7 @@
 import { Colors } from "@/constants/Colors";
 import { useTheme } from "@/hooks/useTheme";
-import { router } from "expo-router";
-import { PlusCircleIcon } from "lucide-react-native";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import NoMessagesIllustration from "../illustrations/NoMessagesIllustration";
 
 const NoMessages = () => {
@@ -20,14 +18,14 @@ const NoMessages = () => {
             <Text style={[styles.subtitle, { color: appColors.text, opacity: 0.7 }]}>
                 Start a conversation by tapping the + button above
             </Text>
-            <TouchableOpacity
+            {/* <TouchableOpacity
                 style={[styles.button, { backgroundColor: appColors.tint }]}
                 onPress={() => router.push("/contacts")}
                 activeOpacity={0.8}
             >
                 <PlusCircleIcon size={20} color="white" strokeWidth={2.5} />
                 <Text style={styles.buttonText}>Start New Conversation</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
         </View>
     );
 };

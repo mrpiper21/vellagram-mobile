@@ -63,7 +63,7 @@ const RegisterScreen = () => {
 
             const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, registrationData);
 
-            if (response.data.success && response.data.token) {
+            if (response.status === 201) {
                 console.log("✅ Registration successful - Token received:", response.data.token);
                 setFormValue("user", {
                     user: {
@@ -72,10 +72,7 @@ const RegisterScreen = () => {
                     },
                     token: response.data.token
                 })
-                router.push({
-                    pathname: "/auth/OtpAuthScreen",
-                    params: { email: formData.email }
-                });
+                router.push("/auth/OtpAuthScreen");
             } else {
                 Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
             }

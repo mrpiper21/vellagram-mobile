@@ -43,7 +43,10 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Velagram to use Face ID."
+          "faceIDPermission": "Allow Velagram to use Face ID.",
+          "touchIDPermission": "Allow Velagram to use Touch ID.",
+          "biometricPermission": "Allow Velagram to use Biometric."
+          
         }
       ],
        [

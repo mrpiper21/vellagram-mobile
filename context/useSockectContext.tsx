@@ -28,7 +28,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       console.log("🔌 Connecting socket for user:", user.id);
 
-      socketRef.current = io("http://172.20.10.8:2000", {
+      socketRef.current = io("http://192.168.86.36:2000", {
         path: "/socket.io/",
         transports: ["websocket", "polling"],
         autoConnect: true,
