@@ -31,6 +31,7 @@ const GroupChatScreen: React.FC = () => {
 	const flatListRef = useRef<FlatList>(null);
 
 	console.log("group screen ----- ", id)
+	console.log("GroupChatScreen component rendered with ID:", id)
 
 	useEffect(() => {
 		if (groupId) {
