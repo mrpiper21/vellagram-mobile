@@ -25,6 +25,7 @@ interface ContactState {
   updateFromUserList: (users: UserData[]) => void;
   syncContactsInBackground: () => Promise<void>;
   checkPhoneRegistration: (phoneNumber: string) => Promise<boolean>;
+  clearContactCached: ()=>void
 }
 
 export const useContactStore = create<ContactState>()(
@@ -34,6 +35,9 @@ export const useContactStore = create<ContactState>()(
       isChecking: false,
       lastSyncTime: null,
       userIdentifierSet: null,
+      clearContactCached: ()=> {
+        set({contacts: []})
+      },
 
       batchAddContacts: (newContacts) => {
         const { contacts } = get();

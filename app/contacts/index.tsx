@@ -68,10 +68,14 @@ const ContactsScreen = () => {
     return map;
   }, [allUsers]);
 
-  const { contacts: storedContacts, isChecking, syncContactsInBackground } = useContactStore();
+  const { contacts: storedContacts, isChecking, syncContactsInBackground, } = useContactStore();
   
+  // Deduplicate and normalize contacts
   const deviceContacts = useMemo<ContactWithRegistration[]>(() => {
-    return storedContacts.map(sc => {
+    // Map to store unique contacts by normalized phone number
+    const contactMap = new Map<string, ContactWithRegistration>();
+    
+    storedContacts.forEach(sc => {
       const normalizedPhones = normalizeIdentifiers(sc.phoneNumber);
       let matchingUser: IUser | undefined;
 
@@ -83,16 +87,48 @@ const ContactsScreen = () => {
           break;
         }
       }
-      
-      return {
-        id: sc.id,
-        name: sc.name,
-        phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : [],
-        image: sc.avatar ? { uri: sc.avatar } : undefined,
-        isRegistered: !!matchingUser,
-        userData: matchingUser
-      };
+
+      normalizedPhones.forEach(phone => {
+        if (!contactMap.has(phone)) {
+          contactMap.set(phone, {
+            id: sc.id,
+            name: sc.name,
+            phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : [],
+            image: sc.avatar ? { uri: sc.avatar } : undefined,
+            isRegistered: !!matchingUser,
+            userData: matchingUser
+          });
+        } else {
+          // If already present, prefer the one with a name or image
+          const existing = contactMap.get(phone)!;
+          if ((!existing.name && sc.name) || (!existing.image && sc.avatar)) {
+            contactMap.set(phone, {
+              id: sc.id,
+              name: sc.name || existing.name,
+              phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : existing.phoneNumbers,
+              image: sc.avatar ? { uri: sc.avatar } : existing.image,
+              isRegistered: !!matchingUser || existing.isRegistered,
+              userData: matchingUser || existing.userData
+            });
+          }
+        }
+      });
     });
+
+    // Only return unique contacts (by normalized phone number)
+    // To avoid showing the same person multiple times (with different formats),
+    // we can use a Set to keep track of which user IDs or phone numbers we've already included.
+    const seen = new Set<string>();
+    const uniqueContacts: ContactWithRegistration[] = [];
+    for (const contact of contactMap.values()) {
+      // Use userData.id if registered, else use normalized phone as unique key
+      const uniqueKey = contact.userData?.id || (contact.phoneNumbers && contact.phoneNumbers[0]?.number ? contact.phoneNumbers[0].number.replace(/\D/g, "") : "");
+      if (!seen.has(uniqueKey)) {
+        uniqueContacts.push(contact);
+        seen.add(uniqueKey);
+      }
+    }
+    return uniqueContacts;
   }, [storedContacts, userMap]);
 
   // Handle contact invitation
