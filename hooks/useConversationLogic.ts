@@ -52,19 +52,16 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
         return details;
     }, [conversation, recipientId, user?.id, contacts, allUsers]);
 
-    // Effects
     useEffect(() => {
         if (!conversationId) return;
         setActiveConversation(conversationId);
         markConversationAsRead(conversationId);
-        // Emit read receipt to server
         if (socket && user?.id) {
-            socket.emit('message_read', { conversationId, userId: user.id });
+            socket.emit('message_read', { conversationId });
         }
         return () => setActiveConversation(null);
-    }, [conversationId, setActiveConversation, markConversationAsRead, socket, user?.id]);
+    }, [conversationId, setActiveConversation, messages, socket, user?.id]);
 
-    // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         if (messages && messages.length > 0) {
             setTimeout(() => {
@@ -124,7 +121,7 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
                 });
             }
 
-            const messageStatus = isConnected ? 'sending' : 'queued';
+            const messageStatus = isConnected ? 'delivered' : 'pending';
             addMessage({
                 recipientId,
                 senderId: user.id,

@@ -12,7 +12,7 @@ export interface Message {
     content: string;
     type: 'text' | 'image' | 'file' | 'audio' | 'video';
     timestamp: number;
-    status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'queued';
+    status:  'sent' | 'delivered' | 'read' | 'pending';
     acknowledgmentId?: string;
     metadata?: {
         fileUrl?: string;
@@ -94,7 +94,7 @@ export const useChatStore = create<ChatState>()(
             isLoading: false,
             isSending: false,
 
-            addMessage: (message, status = 'sending') => {
+            addMessage: (message, status = 'pending') => {
                 const { recipientId, senderId, content, type = 'text' } = message;
                 const conversationId = get().getConversationId(senderId, recipientId);
                 const newMessage: Message = {
@@ -141,9 +141,9 @@ export const useChatStore = create<ChatState>()(
                         }
                     };
                 });
-                setTimeout(() => {
-                    get().updateMessageStatus(newMessage.id, 'sent');
-                }, 1000);
+                // setTimeout(() => {
+                //     get().updateMessageStatus(newMessage.id, 'delivered');
+                // }, 1000);
             },
 
             addSocketMessage: (socketMessage) => {

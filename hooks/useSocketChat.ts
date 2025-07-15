@@ -2,11 +2,28 @@ import { ruseSocketContext } from '@/context/useSockectContext';
 import { useChatStore } from '@/store/useChatStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useEffect } from 'react';
+import { useNetworkStatus } from './useNetworkStatus';
+
+export const useMarkConversationAsRead = (conversationId: string) => {
+    const { messages } = useChatStore();
+    const { user } = useUserStore();
+    const { socket, isConnected } = ruseSocketContext();
+    useEffect(() => {
+        if (!socket || !user?.id || !isConnected) return;
+        const unreadMessages = (messages[conversationId] || []).filter(msg => msg.status !== 'read' && msg.recipientId === user.id);
+        if (unreadMessages.length > 0) {
+            unreadMessages.forEach(msg => {
+                socket.emit('message_read', { messageId: msg.id, acknowledgmentId: `${msg.id}-${Date.now()}` });
+            });
+        }
+    }, [conversationId, messages, user?.id, socket, isConnected]);
+};
 
 export const useSocketChat = () => {
     const { socket, isConnected } = ruseSocketContext();
     const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
+    const isDeviceOnline = useNetworkStatus();
 
     const sendQueuedMessages = () => {
         if (!socket || !user?.id || !isConnected) return;
@@ -23,23 +40,26 @@ export const useSocketChat = () => {
             console.log('📤 Sending queued message:', messageData);
             socket.emit('message', messageData);
             console.log('🔄 Updating queued message status to sent for:', { recipientId: queuedMsg.recipientId, content: queuedMsg.content });
-            updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'sent');
+            updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'delivered');
             removeFromQueue(queuedMsg.id);
         });
     };
 
-    // Send queued messages when socket connects
     useEffect(() => {
         if (isConnected && socket && user?.id) {
-            console.log('🔌 Socket connected, sending queued messages');
             sendQueuedMessages();
         }
     }, [isConnected, socket, user?.id]);
 
     useEffect(() => {
+        if (isDeviceOnline && isConnected && socket && user?.id) {
+            sendQueuedMessages();
+        }
+    }, [isDeviceOnline, isConnected, socket, user?.id]);
+
+    useEffect(() => {
         if (!socket || !user?.id) return;
 
-        console.log('🔌 Initializing socket chat listeners for user:', user.id);
 
         socket.emit('register', { userId: user.id });
 
@@ -62,12 +82,11 @@ export const useSocketChat = () => {
                 id: data.id
             };
             addSocketMessage(socketMessage);
-            if (data.acknowledgmentId) {
-                socket.emit('message_delivered', {
-                    messageId: data.id,
-                    acknowledgmentId: data.acknowledgmentId
-                });
-            }
+            // Always emit message_delivered for real-time delivery status
+            socket.emit('message_delivered', {
+                messageId: data.id,
+                acknowledgmentId: data.acknowledgmentId || `${data.id}-${Date.now()}`
+            });
         };
 
         const handlePendingMessages = (data: {
@@ -103,6 +122,11 @@ export const useSocketChat = () => {
                     id: msg.id
                 };
                 addSocketMessage(socketMessage);
+                // Emit delivery for each pending message
+                socket.emit('message_delivered', {
+                    messageId: msg.id,
+                    acknowledgmentId: `${msg.id}-${Date.now()}`
+                });
             });
         };
 
@@ -149,7 +173,7 @@ export const useSocketChat = () => {
             socket.off('typing-stop', handleTypingStop);
             socket.off('message_read', handleMessageRead);
         };
-    }, [socket, user?.id, addSocketMessage]);
+    }, [socket, user?.id, addSocketMessage, updateMessageStatus]);
 
     // Return functions for sending messages
     const sendMessage = (recipientId: string, message: string, type: string = 'text') => {

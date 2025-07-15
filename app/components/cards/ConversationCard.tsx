@@ -1,8 +1,9 @@
 import { getOtherParticipantDetails } from "@/helpers/conversationUtils";
-import { AntDesign, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import AvatarPlaceholder from "../avatar/AvatarPlaceholder";
 
 interface ConversationCardProps {
     item: any;
@@ -85,7 +86,7 @@ const ConversationCard: React.FC<ConversationCardProps> = ({
                         </View>
                     ) : (
                         <View style={[styles.avatar, { backgroundColor: theme.tint }]}>
-                            <AntDesign name="user" color={theme.background} size={34} />
+                            <AvatarPlaceholder size={60} style={{borderRadius: 50}} />
                             {isUnread && (
                                 <View
                                     style={[

@@ -48,7 +48,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     style={[
                         styles.sendButton,
                         {
-                            backgroundColor: newMessage.trim() && isConnected ? theme.tint : theme.card,
+                            backgroundColor:theme.tint,
                             borderColor: theme.border,
                             opacity: isSending ? 0.6 : 1
                         }
@@ -58,7 +58,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     <Ionicons
                         name={isSending ? "time" : "send"}
                         size={20}
-                        color={newMessage?.trim() ? "white" : theme.icon}
+                        color={"white"}
                     />
                 </TouchableOpacity>
             </View>

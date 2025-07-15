@@ -12,20 +12,14 @@ interface MessageProps {
 export const Message: React.FC<MessageProps> = ({ message, isOwnMessage, theme }) => {
     const getStatusIcon = (status?: string) => {
         switch (status) {
-            case 'queued':
+            case 'pending':
                 return 'time';
-            case 'sending':
-                return 'time';
-            case 'sent':
-                return 'checkmark';
             case 'delivered':
-                return 'checkmark-done';
+                return 'checkmark';
             case 'read':
                 return 'checkmark-done';
-            case 'failed':
-                return 'close';
             default:
-                return 'close';
+                return 'time';
         }
     };
 
