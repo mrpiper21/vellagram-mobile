@@ -8,6 +8,8 @@ import {
 	Dimensions,
 	Image,
 	Modal,
+	Platform,
+	StatusBar,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
@@ -61,7 +63,11 @@ export const Header: React.FC<HeaderProps> = ({
 
 	return (
 		<>
-			<View style={[styles.header, { backgroundColor: appColors.card }]}>
+			<StatusBar
+				backgroundColor={appColors.card}
+				barStyle={theme.isDark ? "light-content" : "dark-content"}
+			/>
+			<View style={[styles.header, { backgroundColor: appColors.card, borderColor: appColors.border }]}>
 				<View style={styles.leftSection}>
 					<TouchableOpacity
 						onPress={() => router.back()}
@@ -151,8 +157,7 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		paddingVertical: 10,
 		borderBottomWidth: 0.5,
-		borderBottomColor: "#ddd",
-		paddingTop: 50,
+		paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 50,
 		justifyContent: "space-between",
 	},
 	leftSection: {

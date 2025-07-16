@@ -26,7 +26,7 @@ export const useMarkConversationAsRead = (conversationId: string) => {
 
 export const useSocketChat = () => {
     const { socket, isConnected } = ruseSocketContext();
-    const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
+    const { addSocketMessage, addToQueue, removeFromQueue, queuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
     const { sendMessageNotification } = useMessageNotifications();
     const { allUsers } = useUserInactivity();
@@ -35,8 +35,6 @@ export const useSocketChat = () => {
 
     const sendQueuedMessages = () => {
         if (!socket || !user?.id || !isConnected) return;
-
-        const queuedMessages = getQueuedMessages();
 
         queuedMessages.forEach(queuedMsg => {
             const messageData = {
@@ -49,7 +47,7 @@ export const useSocketChat = () => {
             socket.emit('message', messageData);
             console.log('🔄 Updating queued message status to sent for:', { recipientId: queuedMsg.recipientId, content: queuedMsg.content });
             updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'delivered');
-            removeFromQueue(queuedMsg.id);
+            removeFromQueue(queuedMsg.localId);
         });
     };
 
@@ -158,7 +156,7 @@ export const useSocketChat = () => {
         // Listen for delivery status updates from server
         const handleDeliveryStatus = (data: {
             messageId: string;
-            status: 'delivered' | 'read' | 'failed';
+            status: 'delivered' | 'read' | 'pending';
             timestamp: Date;
         }) => {
             console.log('📨 Delivery status update:', data);
@@ -222,14 +220,14 @@ export const useSocketChat = () => {
             socket.emit('message', messageData);
             // Update status to 'sent' when sent immediately
             console.log('🔄 Updating message status to sent for:', { recipientId, message });
-            updateMessageStatusByContent(recipientId, message, 'sent');
+            updateMessageStatusByContent(recipientId, message, "delivered");
         } else {
             // If socket is not connected, add to queue
             console.log('📬 Socket offline, adding message to queue:', messageData);
             addToQueue({
                 recipientId,
                 content: message,
-                type
+                type: type as 'text' | 'image' | 'file' | 'audio' | 'video'
             });
         }
     };

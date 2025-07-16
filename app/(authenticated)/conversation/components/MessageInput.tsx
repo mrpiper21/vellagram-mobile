@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { KeyboardAvoidingView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 interface MessageInputProps {
     newMessage: string;
@@ -21,17 +21,25 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
     return (
         <KeyboardAvoidingView
-        // behavior={Platform.OS === "ios" ? "padding" : undefined}
-        // keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        // style={styles.keyboardAvoid}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
+            style={styles.keyboardAvoid}
         >
-            <View style={[styles.inputBar, { backgroundColor: theme.card }]}>
+            <View style={[styles.inputBar, { backgroundColor: theme.card }, Platform.OS === 'android' ? styles.inputBarAndroid : {}]}>
+                <TouchableOpacity style={{ marginRight: 8, padding: 2 }}>
+                    <Ionicons name="add-circle-outline" size={26} color={theme.icon} />
+                </TouchableOpacity>
                 <View style={[
                     styles.inputContainer,
-                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }
+                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' },
+                    Platform.OS === 'android' ? styles.inputContainerAndroid : {},
                 ]}>
                     <TextInput
-                        style={[styles.input, { color: theme.text }]}
+                        style={[
+                            styles.input,
+                            { color: theme.text },
+                            Platform.OS === 'android' ? styles.inputAndroid : {},
+                        ]}
                         placeholder="Type a message"
                         placeholderTextColor={theme.icon}
                         value={newMessage}
@@ -42,16 +50,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                         maxLength={500}
                         textAlignVertical="center"
                     />
+                    <TouchableOpacity>
+                        <MaterialCommunityIcons name="key-outline" size={24} color={theme.icon} />
+                    </TouchableOpacity>
                 </View>
                 <TouchableOpacity
                     onPress={onSendMessage}
                     style={[
                         styles.sendButton,
                         {
-                            backgroundColor:theme.tint,
+                            backgroundColor: theme.tint,
                             borderColor: theme.border,
                             opacity: isSending ? 0.6 : 1
-                        }
+                        },
+                        Platform.OS === 'android' ? styles.sendButtonAndroid : {},
                     ]}
                     disabled={!newMessage?.trim() || isSending}
                 >
@@ -78,11 +90,14 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        gap: 12,
+        gap: 2,
         borderTopWidth: 0.5,
         borderTopColor: 'rgba(150, 150, 150, 0.2)',
     },
     inputContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        flexDirection: 'row',
         flex: 1,
         borderRadius: 20,
         paddingHorizontal: 16,
@@ -93,6 +108,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         lineHeight: 20,
         minHeight: 20,
+        width: '90%'
     },
     sendButton: {
         width: 40,
@@ -101,5 +117,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
+    },
+    inputBarAndroid: {
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+    },
+    inputContainerAndroid: {
+        borderRadius: 40,
+        paddingHorizontal: 8,
+        paddingVertical: 10,
+    },
+    inputAndroid: {
+        fontSize: 16,
+        lineHeight: 20,
+        minHeight: 20,
+        paddingVertical: 0,
+    },
+    sendButtonAndroid: {
+        elevation: 2,
+        borderRadius: 20,
     },
 }); 
