@@ -26,10 +26,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 	const [isConnected, setIsConnected] = useState(false);
 
 	useEffect(() => {
-		// Initialize socket connection when the provider mounts
 		connect();
 
-		// Cleanup on unmount
 		return () => {
 			disconnect();
 		};

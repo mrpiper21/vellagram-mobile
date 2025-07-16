@@ -5,7 +5,6 @@ import ContactSkeleton from '@/components/skeletons/ContactSkeleton';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useUserInactivity } from '@/context/UserInactivityContext';
 import { normalizeIdentifiers } from '@/helpers/normalizeIdentifiers';
-import { testPhoneNumberNormalization } from '@/services/contact.service';
 import { useContactStore } from '@/store/useContactStore';
 import { router } from 'expo-router';
 import * as SMS from 'expo-sms';
@@ -115,13 +114,10 @@ const ContactsScreen = () => {
       });
     });
 
-    // Only return unique contacts (by normalized phone number)
-    // To avoid showing the same person multiple times (with different formats),
-    // we can use a Set to keep track of which user IDs or phone numbers we've already included.
+
     const seen = new Set<string>();
     const uniqueContacts: ContactWithRegistration[] = [];
     for (const contact of contactMap.values()) {
-      // Use userData.id if registered, else use normalized phone as unique key
       const uniqueKey = contact.userData?.id || (contact.phoneNumbers && contact.phoneNumbers[0]?.number ? contact.phoneNumbers[0].number.replace(/\D/g, "") : "");
       if (!seen.has(uniqueKey)) {
         uniqueContacts.push(contact);
@@ -232,26 +228,6 @@ const ContactsScreen = () => {
     loadContacts();
   }, []);
 
-  // Debug function to test phone number matching
-  const debugPhoneMatching = useCallback(() => {
-    console.log('🔍 Debugging phone number matching...');
-    console.log('📊 All users:', allUsers?.length || 0);
-    console.log('📱 Stored contacts:', storedContacts.length);
-    console.log('👥 Device contacts with registration:', deviceContacts.length);
-    console.log('✅ Registered contacts:', deviceContacts.filter(c => c.isRegistered).length);
-
-    // Test a few phone numbers from your user data
-    const testNumbers = [
-      '0245 420 66',  // Bernard Baah
-      '0246307984',   // Eli Salifu
-      '0597202772',   // danso danso
-      '02416775611',  // 402 Edte
-    ];
-
-    testNumbers.forEach(phone => {
-      testPhoneNumberNormalization(phone);
-    });
-  }, [allUsers, storedContacts, deviceContacts]);
 
   // Force refresh contacts for debugging
   const forceRefreshContacts = useCallback(async () => {

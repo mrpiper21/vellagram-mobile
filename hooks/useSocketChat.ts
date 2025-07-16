@@ -1,13 +1,18 @@
+import { useUserInactivity } from '@/context/UserInactivityContext';
 import { ruseSocketContext } from '@/context/useSockectContext';
+import { getOtherParticipantDetails } from '@/helpers/conversationUtils';
 import { useChatStore } from '@/store/useChatStore';
+import { useContactStore } from '@/store/useContactStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useEffect } from 'react';
+import { useMessageNotifications } from './useMessageNotifications';
 import { useNetworkStatus } from './useNetworkStatus';
 
 export const useMarkConversationAsRead = (conversationId: string) => {
     const { messages } = useChatStore();
     const { user } = useUserStore();
     const { socket, isConnected } = ruseSocketContext();
+    
     useEffect(() => {
         if (!socket || !user?.id || !isConnected) return;
         const unreadMessages = (messages[conversationId] || []).filter(msg => msg.status !== 'read' && msg.recipientId === user.id);
@@ -23,6 +28,9 @@ export const useSocketChat = () => {
     const { socket, isConnected } = ruseSocketContext();
     const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
+    const { sendMessageNotification } = useMessageNotifications();
+    const { allUsers } = useUserInactivity();
+    const {contacts} = useContactStore()
     const isDeviceOnline = useNetworkStatus();
 
     const sendQueuedMessages = () => {
@@ -67,12 +75,23 @@ export const useSocketChat = () => {
             id: string;
             content: string;
             type: string;
+            senderName: string;
             senderId: string;
             timestamp: Date;
             sessionId?: string;
             acknowledgmentId?: string;
         }) => {
             console.log('📨 Received socket message:', data);
+            
+            console.log("All contacts:", useContactStore.getState().contacts);
+            console.log("Looking for senderId:", data.senderId);
+            const participantDetails = getOtherParticipantDetails(
+                data.senderId,
+                user.id,
+                contacts,
+                allUsers || []
+            );
+           
             if (!user?.id) return;
             const socketMessage = {
                 senderId: data.senderId,
@@ -82,6 +101,12 @@ export const useSocketChat = () => {
                 id: data.id
             };
             addSocketMessage(socketMessage);
+            sendMessageNotification({
+                senderId: data.senderId,
+                senderName: participantDetails.name,
+                content: data.content,
+                messageId: data.id
+            })
             // Always emit message_delivered for real-time delivery status
             socket.emit('message_delivered', {
                 messageId: data.id,
@@ -182,8 +207,11 @@ export const useSocketChat = () => {
             return;
         }
 
+        const rec = contacts.find((contact)=> contact.id === recipientId)
+
         const messageData = {
             recipientId,
+            senderName: rec?.name,
             message,
             type
         };

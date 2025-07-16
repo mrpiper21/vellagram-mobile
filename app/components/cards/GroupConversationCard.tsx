@@ -149,7 +149,7 @@ const GroupConversationCard: React.FC<GroupConversationCardProps> = ({
                 ]}
                 onPress={() => {
                     if (item?.id) {
-                        router.push(`/(authenticated)/conversation/${item.id}`);
+                        router.push(`/(authenticated)/groupChat/${item.id}`);
                     }
                 }}
                 activeOpacity={0.85}

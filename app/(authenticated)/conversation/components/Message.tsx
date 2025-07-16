@@ -77,9 +77,9 @@ const styles = StyleSheet.create({
     },
     messageBubble: {
         maxWidth: '80%',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 16,
         borderBottomLeftRadius: 4,
     },
     messageText: {
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        gap: 4,
+        gap: 2,
     },
     messageTime: {
         fontSize: 12,

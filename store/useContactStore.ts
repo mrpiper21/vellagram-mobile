@@ -95,6 +95,7 @@ export const useContactStore = create<ContactState>()(
             
             return {
               ...contact,
+              name: contact.name,
               isRegistered,
               userData,
               lastChecked: Date.now()
@@ -189,7 +190,6 @@ export const useContactById = (userId: string) => {
   });
 };
 
-// Direct selector for non-hook usage
 export const getContactById = (userId: string) => {
   const state = useContactStore.getState();
   return state.contacts.find(contact => 

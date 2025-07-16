@@ -1,5 +1,5 @@
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
 	FlatList,
@@ -24,6 +24,7 @@ const SavingsScreen: React.FC = () => {
 	const { groups, isLoading, fetchGroups } = useGroupStore();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showCreateSheet, setShowCreateSheet] = useState(false);
+	const router = useRouter()
 
 	useEffect(() => {
 		fetchGroups();
@@ -47,14 +48,7 @@ const SavingsScreen: React.FC = () => {
 	const renderGroupConversationItem = ({ item }: { item: any }) => {
 		console.log("navigating to id -------", item?.id)
 		return (
-			<Link href={`/(authenticated)/group-chat/${item.id}` as any} asChild>
-				<TouchableOpacity
-					activeOpacity={0.7}
-					onPress={() => {
-						console.log("TouchableOpacity pressed for group:", item.id);
-					}}
-				>
-					<GroupConversationCard
+			<GroupConversationCard
 						item={{
 							id: item.id,
 							name: item.name,
@@ -80,8 +74,6 @@ const SavingsScreen: React.FC = () => {
 							profile: null,
 						}))}
 					/>
-				</TouchableOpacity>
-			</Link>
 		)
 	}
 

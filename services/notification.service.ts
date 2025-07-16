@@ -5,7 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
-// Notification configuration
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -55,7 +55,6 @@ class NotificationService {
     }
 
     try {
-      // Load saved settings
       await this.loadNotificationSettings();
       
       // Register for push notifications
@@ -279,7 +278,7 @@ class NotificationService {
         data: { type: 'message', ...data },
         sound: this.notificationSettings.sound ? 'default' : undefined,
       },
-      trigger: null, // Send immediately
+      trigger: null,
     });
   }
 
@@ -336,7 +335,6 @@ class NotificationService {
     }
   }
 
-  // Save notification settings to storage
   private async saveNotificationSettings(): Promise<void> {
     try {
       await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(this.notificationSettings));
@@ -345,7 +343,7 @@ class NotificationService {
     }
   }
 
-  // Save push token to storage
+
   private async savePushToken(token: string): Promise<void> {
     try {
       await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
@@ -354,7 +352,7 @@ class NotificationService {
     }
   }
 
-  // Get push token
+
   getPushToken(): string | null {
     return this.expoPushToken;
   }

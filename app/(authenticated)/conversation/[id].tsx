@@ -79,7 +79,7 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
         contacts,
         allUsers || []
     );
-
+console.log("direct chat ------ ")
     return (
         <View style={{ flex: 1 }}>
             <BackgroundPattern theme={theme} />

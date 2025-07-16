@@ -88,7 +88,6 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     try {
       const message = await SendGroupMessage(groupId, content, type, token);
       
-      // Add the new message to the store
       set(state => ({
         messages: {
           ...state.messages,

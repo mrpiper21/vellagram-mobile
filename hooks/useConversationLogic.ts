@@ -8,6 +8,7 @@ import { User } from '@/types/conversation';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, FlatList } from "react-native";
+import { useMessageNotifications } from "./useMessageNotifications";
 
 interface UseConversationLogicProps {
     conversationId: string;
@@ -23,6 +24,7 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
     const { socket } = ruseSocketContext();
 
     const { addMessage, markConversationAsRead, setActiveConversation, createConversation } = useChatStore((state) => state);
+    const { sendMessageNotification, sendPendingMessagesNotification } = useMessageNotifications();
     const { sendMessage: sendSocketMessage, isConnected } = useSocketChat();
 
     const [newMessage, setNewMessage] = useState('');
@@ -130,6 +132,12 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
             }, messageStatus);
 
             sendSocketMessage(recipientId, newMessage.trim(), 'text');
+            // sendMessageNotification({
+            //     senderId: user.id,
+            //     content: newMessage.trim(),
+            //     senderName: user.firstName,
+            //     messageId: recipientId
+            // })
 
             setNewMessage('');
 
