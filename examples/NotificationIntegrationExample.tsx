@@ -2,17 +2,13 @@ import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useSocketChat } from '@/hooks/useSocketChat';
 import React from 'react';
 
-// Example of how to integrate notifications back into the messaging flow
 export const NotificationIntegrationExample: React.FC = () => {
     const { sendMessageNotification, sendPendingMessagesNotification } = useMessageNotifications();
     const { sendMessage, isConnected } = useSocketChat();
 
-    // Example: Send notification when a new message is received
     const handleNewMessage = (messageData: any) => {
-        // Your existing message handling logic here
         console.log('New message received:', messageData);
 
-        // Send notification for the new message
         sendMessageNotification({
             senderId: messageData.senderId,
             senderName: messageData.senderName,
@@ -59,7 +55,6 @@ export const useSocketWithNotifications = () => {
 
     // Enhanced socket hook with notifications
     const enhancedSendMessage = (recipientId: string, message: string, type: string = 'text') => {
-        // Send message normally
         sendMessage(recipientId, message, type);
     };
 

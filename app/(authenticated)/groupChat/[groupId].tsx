@@ -7,9 +7,8 @@ import {
 	Platform,
 	StyleSheet,
 	Text,
-	TextInput,
 	TouchableOpacity,
-	View,
+	View
 } from "react-native";
 
 import SocketStatusIndicator from "@/app/components/SocketStatusIndicator";
@@ -18,11 +17,13 @@ import socketService from "@/app/services/socket.service";
 import { useGroupStore } from "@/app/store/useGroupStore";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useUserStore } from "@/store/useUserStore";
+import { BackgroundPattern } from "../conversation/components/BackgroundPattern";
+import { MessageInput } from "../conversation/components/MessageInput";
 
 const GroupChatScreen: React.FC = () => {
 	const theme = useAppTheme();
 	const router = useRouter();
-	const { id } = useLocalSearchParams();
+	const { groupId: id } = useLocalSearchParams();
 	const { user } = useUserStore();
 	const { messages, isLoading, error, fetchMessages, sendMessage, addMessage } = useGroupStore();
 	const { isConnected } = useSocket();
@@ -31,6 +32,7 @@ const GroupChatScreen: React.FC = () => {
 	const flatListRef = useRef<FlatList>(null);
 
 	console.log("group screen ----- ", id)
+	console.log("GroupChatScreen component rendered with ID:", id)
 
 	useEffect(() => {
 		if (groupId) {
@@ -104,86 +106,73 @@ const GroupChatScreen: React.FC = () => {
 		);
 	};
 
-	const renderEmptyState = () => (
-		<View style={styles.emptyStateContainer}>
-			<Ionicons name="chatbubbles-outline" size={64} color={theme.textSecondary} />
-			<Text style={[styles.emptyTitle, { color: theme.text }]}>
-				No messages yet
-			</Text>
-			<Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-				Start the conversation by sending a message
+	const groupMessages = messages[groupId] || [];
+
+
+	const renderEmptyBanner = () => (
+		<View style={{ padding: 12, alignItems: 'center', backgroundColor: theme.card, borderRadius: 12, margin: 16 }}>
+			{/* <Text style={{ color: theme.text, fontWeight: '600', fontSize: 16 }}>No messages yet</Text> */}
+			<Text style={{ color: theme.textSecondary, marginTop: 4, textAlign: 'center' }}>
+				Start the conversation by sending a message to the group!
 			</Text>
 		</View>
 	);
 
-	const groupMessages = messages[groupId] || [];
-
 	return (
-		<KeyboardAvoidingView 
-			style={[styles.container, { backgroundColor: theme.background }]}
+		<KeyboardAvoidingView
+			style={[styles.container]}
 			behavior={Platform.OS === "ios" ? "padding" : "height"}
-			keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+			keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
 		>
-			{/* Header */}
-			<View style={[styles.header, { borderBottomColor: theme.border }]}>
-				<TouchableOpacity 
-					style={styles.backButton}
-					onPress={() => router.back()}
-				>
-					<Ionicons name="arrow-back" size={24} color={theme.text} />
-				</TouchableOpacity>
-				<View style={styles.headerContent}>
-					<Text style={[styles.headerTitle, { color: theme.text }]}>
-						Group Chat
-					</Text>
-					<Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-						{isLoading ? "Loading..." : `${groupMessages.length} messages`}
-					</Text>
-					<SocketStatusIndicator size="small" />
-				</View>
-			</View>
+			<View style={{ flex: 1, position: 'relative' }}>
+				{/* Backdrop */}
+				
 
-			{/* Messages List */}
-			<FlatList
-				ref={flatListRef}
-				data={groupMessages}
-				renderItem={renderMessage}
-				keyExtractor={(item) => item.id}
-				style={styles.messagesList}
-				contentContainerStyle={[
-					groupMessages.length === 0 ? styles.emptyList : styles.messagesContent
-				]}
-				ListEmptyComponent={renderEmptyState}
-				showsVerticalScrollIndicator={false}
-				onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-				onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-			/>
-
-			{/* Message Input */}
-			<View style={[styles.inputContainer, { borderTopColor: theme.border }]}>
-				<View style={[styles.inputWrapper, { backgroundColor: theme.card, borderColor: theme.border }]}>
-					<TextInput
-						style={[styles.textInput, { color: theme.text }]}
-						placeholder="Type a message..."
-						placeholderTextColor={theme.textSecondary}
-						value={newMessage}
-						onChangeText={setNewMessage}
-						multiline
-						maxLength={500}
-					/>
-					<TouchableOpacity
-						style={[
-							styles.sendButton,
-							{
-								backgroundColor: newMessage.trim() ? theme.tint : theme.textSecondary,
-							},
-						]}
-						onPress={handleSendMessage}
-						disabled={!newMessage.trim()}
+				{/* Header */}
+				<View style={[styles.header, { borderBottomColor: theme.border, zIndex: 1, backgroundColor: theme.background }]}> 
+					<TouchableOpacity 
+						style={styles.backButton}
+						onPress={() => router.back()}
 					>
-						<Ionicons name="send" size={20} color="white" />
+						<Ionicons name="arrow-back" size={24} color={theme.text} />
 					</TouchableOpacity>
+					<View style={styles.headerContent}>
+						<Text style={[styles.headerTitle, { color: theme.text }]}>Group Chat</Text>
+						<Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}> {isLoading ? "Loading..." : `${groupMessages.length} messages`} </Text>
+						<SocketStatusIndicator size="small" />
+					</View>
 				</View>
+				<BackgroundPattern theme={theme} />
+
+				{/* Banner */}
+				{groupMessages.length === 0 && (
+					<View style={{ zIndex: 1 }}>{renderEmptyBanner()}</View>
+				)}
+
+				{/* Messages List */}
+				<FlatList
+					ref={flatListRef}
+					data={groupMessages}
+					renderItem={renderMessage}
+					keyExtractor={(item) => item.id}
+					style={[styles.messagesList, { zIndex: 1 }]}
+					contentContainerStyle={[
+						groupMessages.length === 0 ? styles.emptyList : styles.messagesContent
+					]}
+					showsVerticalScrollIndicator={false}
+					onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+					onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+				/>
+
+				{/* Message Input */}
+				<MessageInput
+					newMessage={newMessage}
+					setNewMessage={setNewMessage}
+					onSendMessage={handleSendMessage}
+					isSending={isLoading}
+					isConnected={isConnected}
+					theme={theme}
+				/>
 			</View>
 		</KeyboardAvoidingView>
 	);
@@ -197,7 +186,7 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		paddingHorizontal: 16,
-		paddingVertical: 12,
+		paddingTop: 42,
 		borderBottomWidth: 1,
 	},
 	backButton: {

@@ -25,6 +25,7 @@ interface ContactState {
   updateFromUserList: (users: UserData[]) => void;
   syncContactsInBackground: () => Promise<void>;
   checkPhoneRegistration: (phoneNumber: string) => Promise<boolean>;
+  clearContactCached: ()=>void
 }
 
 export const useContactStore = create<ContactState>()(
@@ -34,6 +35,9 @@ export const useContactStore = create<ContactState>()(
       isChecking: false,
       lastSyncTime: null,
       userIdentifierSet: null,
+      clearContactCached: ()=> {
+        set({contacts: []})
+      },
 
       batchAddContacts: (newContacts) => {
         const { contacts } = get();
@@ -91,6 +95,7 @@ export const useContactStore = create<ContactState>()(
             
             return {
               ...contact,
+              name: contact.name,
               isRegistered,
               userData,
               lastChecked: Date.now()
@@ -185,7 +190,6 @@ export const useContactById = (userId: string) => {
   });
 };
 
-// Direct selector for non-hook usage
 export const getContactById = (userId: string) => {
   const state = useContactStore.getState();
   return state.contacts.find(contact => 

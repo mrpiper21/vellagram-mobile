@@ -12,20 +12,14 @@ interface MessageProps {
 export const Message: React.FC<MessageProps> = ({ message, isOwnMessage, theme }) => {
     const getStatusIcon = (status?: string) => {
         switch (status) {
-            case 'queued':
+            case 'pending':
                 return 'time';
-            case 'sending':
-                return 'time';
-            case 'sent':
-                return 'checkmark';
             case 'delivered':
-                return 'checkmark-done';
+                return 'checkmark';
             case 'read':
                 return 'checkmark-done';
-            case 'failed':
-                return 'close';
             default:
-                return 'close';
+                return 'time';
         }
     };
 
@@ -83,9 +77,9 @@ const styles = StyleSheet.create({
     },
     messageBubble: {
         maxWidth: '80%',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 16,
         borderBottomLeftRadius: 4,
     },
     messageText: {
@@ -97,7 +91,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        gap: 4,
+        gap: 2,
     },
     messageTime: {
         fontSize: 12,

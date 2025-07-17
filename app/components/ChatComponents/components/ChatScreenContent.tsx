@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-    FlatList,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+	FlatList,
+	StatusBar,
+	StyleSheet,
+	Text,
+	TouchableOpacity,
+	View,
 } from "react-native";
 
 import ConversationCard from "@/app/components/cards/ConversationCard";
@@ -30,10 +30,10 @@ const ChatScreenContent: React.FC = () => {
 	const [refreshing, setRefreshing] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
-	// Socket integration
+
 	const { isConnected } = useSocketChat();
 
-	// Handle refresh
+
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
 		setTimeout(() => {
@@ -41,7 +41,6 @@ const ChatScreenContent: React.FC = () => {
 		}, 1000);
 	}, []);
 
-	// Memoize and validate conversations to prevent crashes
 	const safeConversations = useMemo(() => {
 		try {
 			if (!conversationsObject || typeof conversationsObject !== "object") {
@@ -64,7 +63,6 @@ const ChatScreenContent: React.FC = () => {
 		}
 	}, [conversationsObject]);
 
-	// Filter conversations based on search query
 	const filteredConversations = useMemo(() => {
 		if (!searchQuery.trim()) {
 			return safeConversations;
@@ -106,7 +104,7 @@ const ChatScreenContent: React.FC = () => {
 				allUsers={allUsers}
 			/>
 		),
-		[theme, currentUser, contacts, allUsers]
+		[theme, currentUser, contacts, /*Todo allUsers*/]
 	);
 
 	const renderEmptyState = useCallback(() => (

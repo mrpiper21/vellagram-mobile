@@ -11,10 +11,10 @@ export const useMessageNotifications = () => {
         };
     }, []);
 
-    // Function to send notification for new message
+
     const sendMessageNotification = async (data: {
         senderId: string;
-        senderName?: string;
+        senderName: string;
         content: string;
         messageId: string;
     }) => {
@@ -22,11 +22,9 @@ export const useMessageNotifications = () => {
             const settings = await notificationService.getNotificationSettings();
             if (!settings.enabled) return;
 
-            // Get sender name for notification
-            const senderName = data.senderName || 'Someone';
+            const senderName = data.senderName
             const messagePreview = settings.messagePreview ? data.content : 'New message';
-            
-            // Create conversation ID
+
             const conversationId = data.senderId;
 
             await notificationService.sendLocalNotification(

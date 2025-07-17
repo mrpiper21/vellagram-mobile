@@ -1,17 +1,40 @@
+import { useUserInactivity } from '@/context/UserInactivityContext';
 import { ruseSocketContext } from '@/context/useSockectContext';
+import { getOtherParticipantDetails } from '@/helpers/conversationUtils';
 import { useChatStore } from '@/store/useChatStore';
+import { useContactStore } from '@/store/useContactStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useEffect } from 'react';
+import { useMessageNotifications } from './useMessageNotifications';
+import { useNetworkStatus } from './useNetworkStatus';
+
+export const useMarkConversationAsRead = (conversationId: string) => {
+    const { messages } = useChatStore();
+    const { user } = useUserStore();
+    const { socket, isConnected } = ruseSocketContext();
+    
+    useEffect(() => {
+        if (!socket || !user?.id || !isConnected) return;
+        const unreadMessages = (messages[conversationId] || []).filter(msg => msg.status !== 'read' && msg.recipientId === user.id);
+        if (unreadMessages.length > 0) {
+            unreadMessages.forEach(msg => {
+                socket.emit('message_read', { messageId: msg.id, acknowledgmentId: `${msg.id}-${Date.now()}` });
+            });
+        }
+    }, [conversationId, messages, user?.id, socket, isConnected]);
+};
 
 export const useSocketChat = () => {
     const { socket, isConnected } = ruseSocketContext();
-    const { addSocketMessage, addToQueue, removeFromQueue, getQueuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
+    const { addSocketMessage, addToQueue, removeFromQueue, queuedMessages, updateMessageStatus, updateMessageStatusByContent } = useChatStore();
     const { user } = useUserStore();
+    const { sendMessageNotification } = useMessageNotifications();
+    const { allUsers } = useUserInactivity();
+    const {contacts} = useContactStore()
+    const isDeviceOnline = useNetworkStatus();
 
     const sendQueuedMessages = () => {
         if (!socket || !user?.id || !isConnected) return;
-
-        const queuedMessages = getQueuedMessages();
 
         queuedMessages.forEach(queuedMsg => {
             const messageData = {
@@ -23,23 +46,26 @@ export const useSocketChat = () => {
             console.log('📤 Sending queued message:', messageData);
             socket.emit('message', messageData);
             console.log('🔄 Updating queued message status to sent for:', { recipientId: queuedMsg.recipientId, content: queuedMsg.content });
-            updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'sent');
-            removeFromQueue(queuedMsg.id);
+            updateMessageStatusByContent(queuedMsg.recipientId, queuedMsg.content, 'delivered');
+            removeFromQueue(queuedMsg.localId);
         });
     };
 
-    // Send queued messages when socket connects
     useEffect(() => {
         if (isConnected && socket && user?.id) {
-            console.log('🔌 Socket connected, sending queued messages');
             sendQueuedMessages();
         }
     }, [isConnected, socket, user?.id]);
 
     useEffect(() => {
+        if (isDeviceOnline && isConnected && socket && user?.id) {
+            sendQueuedMessages();
+        }
+    }, [isDeviceOnline, isConnected, socket, user?.id]);
+
+    useEffect(() => {
         if (!socket || !user?.id) return;
 
-        console.log('🔌 Initializing socket chat listeners for user:', user.id);
 
         socket.emit('register', { userId: user.id });
 
@@ -47,12 +73,23 @@ export const useSocketChat = () => {
             id: string;
             content: string;
             type: string;
+            senderName: string;
             senderId: string;
             timestamp: Date;
             sessionId?: string;
             acknowledgmentId?: string;
         }) => {
             console.log('📨 Received socket message:', data);
+            
+            console.log("All contacts:", useContactStore.getState().contacts);
+            console.log("Looking for senderId:", data.senderId);
+            const participantDetails = getOtherParticipantDetails(
+                data.senderId,
+                user.id,
+                contacts,
+                allUsers || []
+            );
+           
             if (!user?.id) return;
             const socketMessage = {
                 senderId: data.senderId,
@@ -62,12 +99,17 @@ export const useSocketChat = () => {
                 id: data.id
             };
             addSocketMessage(socketMessage);
-            if (data.acknowledgmentId) {
-                socket.emit('message_delivered', {
-                    messageId: data.id,
-                    acknowledgmentId: data.acknowledgmentId
-                });
-            }
+            sendMessageNotification({
+                senderId: data.senderId,
+                senderName: participantDetails.name,
+                content: data.content,
+                messageId: data.id
+            })
+            // Always emit message_delivered for real-time delivery status
+            socket.emit('message_delivered', {
+                messageId: data.id,
+                acknowledgmentId: data.acknowledgmentId || `${data.id}-${Date.now()}`
+            });
         };
 
         const handlePendingMessages = (data: {
@@ -103,13 +145,18 @@ export const useSocketChat = () => {
                     id: msg.id
                 };
                 addSocketMessage(socketMessage);
+                // Emit delivery for each pending message
+                socket.emit('message_delivered', {
+                    messageId: msg.id,
+                    acknowledgmentId: `${msg.id}-${Date.now()}`
+                });
             });
         };
 
         // Listen for delivery status updates from server
         const handleDeliveryStatus = (data: {
             messageId: string;
-            status: 'delivered' | 'read' | 'failed';
+            status: 'delivered' | 'read' | 'pending';
             timestamp: Date;
         }) => {
             console.log('📨 Delivery status update:', data);
@@ -149,7 +196,7 @@ export const useSocketChat = () => {
             socket.off('typing-stop', handleTypingStop);
             socket.off('message_read', handleMessageRead);
         };
-    }, [socket, user?.id, addSocketMessage]);
+    }, [socket, user?.id, addSocketMessage, updateMessageStatus]);
 
     // Return functions for sending messages
     const sendMessage = (recipientId: string, message: string, type: string = 'text') => {
@@ -158,8 +205,11 @@ export const useSocketChat = () => {
             return;
         }
 
+        const rec = contacts.find((contact)=> contact.id === recipientId)
+
         const messageData = {
             recipientId,
+            senderName: rec?.name,
             message,
             type
         };
@@ -170,14 +220,14 @@ export const useSocketChat = () => {
             socket.emit('message', messageData);
             // Update status to 'sent' when sent immediately
             console.log('🔄 Updating message status to sent for:', { recipientId, message });
-            updateMessageStatusByContent(recipientId, message, 'sent');
+            updateMessageStatusByContent(recipientId, message, "delivered");
         } else {
             // If socket is not connected, add to queue
             console.log('📬 Socket offline, adding message to queue:', messageData);
             addToQueue({
                 recipientId,
                 content: message,
-                type
+                type: type as 'text' | 'image' | 'file' | 'audio' | 'video'
             });
         }
     };

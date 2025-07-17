@@ -1,16 +1,16 @@
 import { API_BASE_URL } from "@/config/api";
 import TokenManager from "@/utils/tokenManager";
 import { io, Socket } from "socket.io-client";
+import { useChatStore } from "../../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
 
 // Socket server configuration
 const SOCKET_CONFIG = {
 	// Try different URLs based on environment
 	URLS: [
-		"http://localhost:2000", 
 		"http://172.20.10.8:2000",
 	],
-	DEFAULT_URL: "http://localhost:3001",
+	DEFAULT_URL: "http://172.20.10.8:2000",
 	RECONNECT_ATTEMPTS: 3,
 	RECONNECT_DELAY: 2000,
 	CONNECTION_TIMEOUT: 10000,
@@ -41,7 +41,7 @@ class SocketService {
 				transports: ["websocket", "polling"],
 				timeout: SOCKET_CONFIG.CONNECTION_TIMEOUT,
 				forceNew: true,
-				reconnection: false, // We'll handle reconnection manually
+				reconnection: false,
 			});
 
 			this.setupEventListeners();
@@ -76,6 +76,24 @@ class SocketService {
 		this.socket.on("connect_error", (error) => {
 			console.error("❌ Socket connection error:", error.message);
 			this.handleConnectionFailure();
+		});
+
+		// Handle incoming direct messages
+		this.socket.on("message", (message: any) => {
+			// Validate message structure
+			if (!message || !message.id || !message.senderId || !message.recipientId || !message.content) {
+				console.warn("⚠️ Received malformed direct message:", message);
+				return;
+			}
+			console.log("📨 Received direct message:", message);
+			const { addSocketMessage } = useChatStore.getState();
+			addSocketMessage({
+				senderId: message.senderId,
+				recipientId: message.recipientId,
+				message: message.content,
+				type: message.type,
+				id: message.id
+			});
 		});
 
 		// Handle incoming group messages

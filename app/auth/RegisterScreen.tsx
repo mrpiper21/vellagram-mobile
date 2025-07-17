@@ -4,10 +4,9 @@ import AccountInfo from '@/components/registeration-form/account-info';
 import PersonalInformation from '@/components/registeration-form/personal-info';
 import PinSetUp from '@/components/registeration-form/pin-setup';
 import WalletSetUp from '@/components/registeration-form/wallet-setUp';
-import { API_ENDPOINTS } from '@/config/api';
+import { apiService } from '@/config/api';
 import { Colors } from '@/constants/Colors';
 import { useValidateSteps } from '@/hooks/useValidateSteps';
-import axios from 'axios';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -61,20 +60,20 @@ const RegisterScreen = () => {
                 confirmPin: formData.confirmPin
             };
 
-            const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, registrationData);
+            const response = await apiService.register(registrationData);
 
-            if (response.status === 201) {
-                console.log("✅ Registration successful - Token received:", response.data.token);
+            if (response && response.token) {
+                console.log("✅ Registration successful - Token received:", response.token);
                 setFormValue("user", {
                     user: {
-                        ...response.data.user,
+                        ...response.user,
                         password: formData.password
                     },
-                    token: response.data.token
-                })
+                    token: response.token
+                });
                 router.push("/auth/OtpAuthScreen");
             } else {
-                Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
+                Alert.alert('Error', response.message || 'Registration failed. Please try again.');
             }
         } catch (error: any) {
             Alert.alert(

@@ -5,7 +5,6 @@ import ContactSkeleton from '@/components/skeletons/ContactSkeleton';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useUserInactivity } from '@/context/UserInactivityContext';
 import { normalizeIdentifiers } from '@/helpers/normalizeIdentifiers';
-import { testPhoneNumberNormalization } from '@/services/contact.service';
 import { useContactStore } from '@/store/useContactStore';
 import { router } from 'expo-router';
 import * as SMS from 'expo-sms';
@@ -68,10 +67,14 @@ const ContactsScreen = () => {
     return map;
   }, [allUsers]);
 
-  const { contacts: storedContacts, isChecking, syncContactsInBackground } = useContactStore();
+  const { contacts: storedContacts, isChecking, syncContactsInBackground, } = useContactStore();
   
+  // Deduplicate and normalize contacts
   const deviceContacts = useMemo<ContactWithRegistration[]>(() => {
-    return storedContacts.map(sc => {
+    // Map to store unique contacts by normalized phone number
+    const contactMap = new Map<string, ContactWithRegistration>();
+    
+    storedContacts.forEach(sc => {
       const normalizedPhones = normalizeIdentifiers(sc.phoneNumber);
       let matchingUser: IUser | undefined;
 
@@ -83,16 +86,45 @@ const ContactsScreen = () => {
           break;
         }
       }
-      
-      return {
-        id: sc.id,
-        name: sc.name,
-        phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : [],
-        image: sc.avatar ? { uri: sc.avatar } : undefined,
-        isRegistered: !!matchingUser,
-        userData: matchingUser
-      };
+
+      normalizedPhones.forEach(phone => {
+        if (!contactMap.has(phone)) {
+          contactMap.set(phone, {
+            id: sc.id,
+            name: sc.name,
+            phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : [],
+            image: sc.avatar ? { uri: sc.avatar } : undefined,
+            isRegistered: !!matchingUser,
+            userData: matchingUser
+          });
+        } else {
+          // If already present, prefer the one with a name or image
+          const existing = contactMap.get(phone)!;
+          if ((!existing.name && sc.name) || (!existing.image && sc.avatar)) {
+            contactMap.set(phone, {
+              id: sc.id,
+              name: sc.name || existing.name,
+              phoneNumbers: sc.phoneNumber ? [{ number: sc.phoneNumber }] : existing.phoneNumbers,
+              image: sc.avatar ? { uri: sc.avatar } : existing.image,
+              isRegistered: !!matchingUser || existing.isRegistered,
+              userData: matchingUser || existing.userData
+            });
+          }
+        }
+      });
     });
+
+
+    const seen = new Set<string>();
+    const uniqueContacts: ContactWithRegistration[] = [];
+    for (const contact of contactMap.values()) {
+      const uniqueKey = contact.userData?.id || (contact.phoneNumbers && contact.phoneNumbers[0]?.number ? contact.phoneNumbers[0].number.replace(/\D/g, "") : "");
+      if (!seen.has(uniqueKey)) {
+        uniqueContacts.push(contact);
+        seen.add(uniqueKey);
+      }
+    }
+    return uniqueContacts;
   }, [storedContacts, userMap]);
 
   // Handle contact invitation
@@ -196,26 +228,6 @@ const ContactsScreen = () => {
     loadContacts();
   }, []);
 
-  // Debug function to test phone number matching
-  const debugPhoneMatching = useCallback(() => {
-    console.log('🔍 Debugging phone number matching...');
-    console.log('📊 All users:', allUsers?.length || 0);
-    console.log('📱 Stored contacts:', storedContacts.length);
-    console.log('👥 Device contacts with registration:', deviceContacts.length);
-    console.log('✅ Registered contacts:', deviceContacts.filter(c => c.isRegistered).length);
-
-    // Test a few phone numbers from your user data
-    const testNumbers = [
-      '0245 420 66',  // Bernard Baah
-      '0246307984',   // Eli Salifu
-      '0597202772',   // danso danso
-      '02416775611',  // 402 Edte
-    ];
-
-    testNumbers.forEach(phone => {
-      testPhoneNumberNormalization(phone);
-    });
-  }, [allUsers, storedContacts, deviceContacts]);
 
   // Force refresh contacts for debugging
   const forceRefreshContacts = useCallback(async () => {

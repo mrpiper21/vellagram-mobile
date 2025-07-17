@@ -79,10 +79,8 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
         contacts,
         allUsers || []
     );
-
     return (
         <View style={{ flex: 1 }}>
-            <BackgroundPattern theme={theme} />
             <Header
                 groupName={conversationUser.name}
                 groupAvatar={conversationUser.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -95,6 +93,7 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
                     phoneNumber: recipientContact?.phoneNumber || '',
                 }}
             />
+            <BackgroundPattern theme={theme} />
             <MenuDropdown
                 visible={showMenu}
                 onClose={toggleMenu}
@@ -111,7 +110,7 @@ const ConversationView = ({ theme, conversationId, recipientId, user }: Conversa
             />
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
             >
                 {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}> */}

@@ -12,7 +12,7 @@ export interface Message {
     content: string;
     type: 'text' | 'image' | 'file' | 'audio' | 'video';
     timestamp: number;
-    status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'queued';
+    status:  'delivered' | 'read' | 'pending';
     acknowledgmentId?: string;
     metadata?: {
         fileUrl?: string;
@@ -27,11 +27,12 @@ export interface Message {
 }
 
 export interface QueuedMessage {
-    id: string;
+    localId: string;
     recipientId: string;
     content: string;
-    type: string;
+    type: 'text' | 'image' | 'file' | 'audio' | 'video';
     timestamp: number;
+    status: 'pending' | 'failed';
 }
 
 export interface Conversation {
@@ -76,10 +77,9 @@ export interface ChatState {
     getConversationId: (participant1: string, participant2: string) => string;
     clearAllData: () => void;
     // Queue management functions
-    addToQueue: (message: Omit<QueuedMessage, 'id' | 'timestamp'>) => void;
-    removeFromQueue: (messageId: string) => void;
-    getQueuedMessages: () => QueuedMessage[];
-    clearQueue: () => void;
+    addToQueue: (message: Omit<QueuedMessage, 'localId' | 'timestamp' | 'status'>) => void;
+    removeFromQueue: (localId: string) => void;
+    drainQueue: (sentLocalIds: string[]) => void;
     // Clear all data and reset to initial state
     resetChatStore: () => void;
 }
@@ -94,7 +94,7 @@ export const useChatStore = create<ChatState>()(
             isLoading: false,
             isSending: false,
 
-            addMessage: (message, status = 'sending') => {
+            addMessage: (message, status = 'pending') => {
                 const { recipientId, senderId, content, type = 'text' } = message;
                 const conversationId = get().getConversationId(senderId, recipientId);
                 const newMessage: Message = {
@@ -141,9 +141,9 @@ export const useChatStore = create<ChatState>()(
                         }
                     };
                 });
-                setTimeout(() => {
-                    get().updateMessageStatus(newMessage.id, 'sent');
-                }, 1000);
+                // setTimeout(() => {
+                //     get().updateMessageStatus(newMessage.id, 'delivered');
+                // }, 1000);
             },
 
             addSocketMessage: (socketMessage) => {
@@ -435,22 +435,28 @@ export const useChatStore = create<ChatState>()(
 
             // Queue management functions
             addToQueue: (message) => {
-                const queuedMessage: QueuedMessage = {
-                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    recipientId: message.recipientId,
-                    content: message.content,
-                    type: message.type,
-                    timestamp: Date.now()
-                };
-
                 set((state) => ({
-                    queuedMessages: [...state.queuedMessages, queuedMessage]
+                    queuedMessages: [
+                        ...state.queuedMessages,
+                        {
+                            ...message,
+                            localId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            timestamp: Date.now(),
+                            status: 'pending',
+                        },
+                    ],
                 }));
             },
 
-            removeFromQueue: (messageId) => {
+            removeFromQueue: (localId) => {
                 set((state) => ({
-                    queuedMessages: state.queuedMessages.filter(msg => msg.id !== messageId)
+                    queuedMessages: state.queuedMessages.filter(msg => msg.localId !== localId)
+                }));
+            },
+
+            drainQueue: (sentLocalIds: string[]) => {
+                set((state) => ({
+                    queuedMessages: state.queuedMessages.filter(msg => !sentLocalIds.includes(msg.localId))
                 }));
             },
 
@@ -469,6 +475,7 @@ export const useChatStore = create<ChatState>()(
                 conversations: state.conversations,
                 messages: state.messages,
                 queuedMessages: state.queuedMessages,
+                activeConversationId: state.activeConversationId,
             })
         }
     )
@@ -491,6 +498,9 @@ export const useChatActions = () => useChatStore((state) => ({
     clearMessages: state.clearMessages,
     deleteMessage: state.deleteMessage,
     clearAllData: state.clearAllData,
+    addToQueue: state.addToQueue,
+    removeFromQueue: state.removeFromQueue,
+    drainQueue: state.drainQueue,
 }));
 export const useConversationMessages = (conversationId: string) =>
     useChatStore(useShallow(state => state.messages[conversationId] || []));

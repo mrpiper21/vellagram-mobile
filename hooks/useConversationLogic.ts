@@ -8,6 +8,7 @@ import { User } from '@/types/conversation';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, FlatList } from "react-native";
+import { useMessageNotifications } from "./useMessageNotifications";
 
 interface UseConversationLogicProps {
     conversationId: string;
@@ -23,6 +24,7 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
     const { socket } = ruseSocketContext();
 
     const { addMessage, markConversationAsRead, setActiveConversation, createConversation } = useChatStore((state) => state);
+    const { sendMessageNotification, sendPendingMessagesNotification } = useMessageNotifications();
     const { sendMessage: sendSocketMessage, isConnected } = useSocketChat();
 
     const [newMessage, setNewMessage] = useState('');
@@ -52,19 +54,16 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
         return details;
     }, [conversation, recipientId, user?.id, contacts, allUsers]);
 
-    // Effects
     useEffect(() => {
         if (!conversationId) return;
         setActiveConversation(conversationId);
         markConversationAsRead(conversationId);
-        // Emit read receipt to server
         if (socket && user?.id) {
-            socket.emit('message_read', { conversationId, userId: user.id });
+            socket.emit('message_read', { conversationId });
         }
         return () => setActiveConversation(null);
-    }, [conversationId, setActiveConversation, markConversationAsRead, socket, user?.id]);
+    }, [conversationId, setActiveConversation, messages, socket, user?.id]);
 
-    // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         if (messages && messages.length > 0) {
             setTimeout(() => {
@@ -124,7 +123,7 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
                 });
             }
 
-            const messageStatus = isConnected ? 'sending' : 'queued';
+            const messageStatus = isConnected ? 'delivered' : 'pending';
             addMessage({
                 recipientId,
                 senderId: user.id,
@@ -133,6 +132,12 @@ export const useConversationLogic = ({ conversationId, recipientId, user }: UseC
             }, messageStatus);
 
             sendSocketMessage(recipientId, newMessage.trim(), 'text');
+            // sendMessageNotification({
+            //     senderId: user.id,
+            //     content: newMessage.trim(),
+            //     senderName: user.firstName,
+            //     messageId: recipientId
+            // })
 
             setNewMessage('');
 

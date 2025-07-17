@@ -2,9 +2,8 @@ import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 
 import TokenManager from '../utils/tokenManager';
 
 // API Configuration
-export const API_BASE_URL = "http://172.28.160.1:2000";
-const prisma = "http://172.28.160.1:2000";
-// http://localhost:2000/api/users/signup
+export const API_BASE_URL = "http://192.168.86.248:2000"; // Local development server
+const prisma = "http://192.168.86.248:2000";
 
 // Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
@@ -72,7 +71,7 @@ export const API_ENDPOINTS = {
 	},
 	GROUPS: {
 		CREATE: `${API_BASE_URL}/api/groups`,
-		GET_USER_GROUPS: `${API_BASE_URL}/api/groups`,
+		GET_USER_GROUPS: `${API_BASE_URL}/api/groups/user-groups`,
 		GET_MESSAGES: `${API_BASE_URL}/api/groups/:groupId/chat`,
 		SEND_MESSAGE: `${API_BASE_URL}/api/groups/:groupId/chat`,
 		MARK_READ: `${API_BASE_URL}/api/groups/:groupId/chat/read`,
@@ -96,7 +95,7 @@ export const apiService = {
     return response.data;
   },
 
-  register: async (userData: { email: string; password: string; name: string }) => {
+  register: async (userData: { email: string; password: string; firstName: string,lastName: string, confirmPassword: string, phone: string, confirmPin: string, pin: string  }) => {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData);
     
     // Store token and user data on successful registration
