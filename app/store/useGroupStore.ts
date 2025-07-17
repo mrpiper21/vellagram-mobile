@@ -16,6 +16,7 @@ interface GroupStore {
   addMessage: (groupId: string, message: GroupMessage) => void;
   addGroup: (group: Group) => void;
   clearError: () => void;
+  addSocketMessage: (groupId: string, message: GroupMessage) => void;
 }
 
 export const useGroupStore = create<GroupStore>((set, get) => ({
@@ -112,6 +113,15 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   addGroup: (group: Group) => {
     set(state => ({
       groups: [...state.groups, group]
+    }));
+  },
+
+  addSocketMessage: (groupId: string, message: GroupMessage) => {
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [groupId]: [...(state.messages[groupId] || []), { ...message, status: 'delivered' }]
+      }
     }));
   },
 

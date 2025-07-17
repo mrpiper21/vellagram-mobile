@@ -3,8 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
 	FlatList,
-	KeyboardAvoidingView,
-	Platform,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
@@ -25,7 +23,7 @@ const GroupChatScreen: React.FC = () => {
 	const router = useRouter();
 	const { groupId: id } = useLocalSearchParams();
 	const { user } = useUserStore();
-	const { messages, isLoading, error, fetchMessages, sendMessage, addMessage } = useGroupStore();
+	const { messages, isLoading, error, fetchMessages, sendMessage, addMessage, addSocketMessage } = useGroupStore();
 	const { isConnected } = useSocket();
 	const [newMessage, setNewMessage] = useState("");
 	const groupId = id as string;
@@ -37,29 +35,56 @@ const GroupChatScreen: React.FC = () => {
 	useEffect(() => {
 		if (groupId) {
 			fetchMessages(groupId);
-			// Join group room for real-time messages
 			socketService.joinGroup(groupId);
 		}
 
-		// Cleanup: leave group room when component unmounts
+		// Listen for incoming group messages
+		function onGroupMessage(message: any) {
+			if (message.groupId === groupId) {
+				addSocketMessage(groupId, message);
+			}
+		}
+		const socket = socketService.getSocket();
+		if (socket) {
+			socket.on('group_message', onGroupMessage);
+		}
+
 		return () => {
 			if (groupId) {
 				socketService.leaveGroup(groupId);
 			}
+			const socket = socketService.getSocket();
+			if (socket) {
+				socket.off('group_message', onGroupMessage);
+			}
 		};
-	}, [groupId, fetchMessages]);
+	}, [groupId, fetchMessages, addSocketMessage]);
 
 	const handleSendMessage = async () => {
-		if (newMessage.trim() && groupId) {
+		if (newMessage.trim() && groupId && user && user.id && typeof groupId === 'string') {
 			const messageContent = newMessage.trim();
 			setNewMessage("");
-			
+			// Optimistic UI update
+			socketService.sendGroupMessage(groupId, messageContent, "text");
+			addSocketMessage(groupId, {
+				id: `temp-${Date.now()}`,
+				content: messageContent,
+				type: 'text',
+				senderId: user.id,
+				groupId,
+				timestamp: new Date().toISOString(),
+				read: false,
+				deliveryStatus: 'pending',
+				sender: {
+					id: user.id,
+					firstName: user.firstName || '',
+					lastName: user.lastName || '',
+					profilePicture: user.profilePicture ?? undefined,
+				},
+			});
 			try {
-				// Send via API for persistence
-				await sendMessage(groupId, messageContent, "text");
+				// await sendMessage(groupId, messageContent, "text");
 				
-				// Also send via socket for real-time delivery
-				socketService.sendGroupMessage(groupId, messageContent, "text");
 			} catch (error) {
 				console.error("Error sending message:", error);
 			}
@@ -119,10 +144,10 @@ const GroupChatScreen: React.FC = () => {
 	);
 
 	return (
-		<KeyboardAvoidingView
+		<View
 			style={[styles.container]}
-			behavior={Platform.OS === "ios" ? "padding" : "height"}
-			keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
+			// behavior={Platform.OS === "ios" ? "padding" : "height"}
+			// keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
 		>
 			<View style={{ flex: 1, position: 'relative' }}>
 				{/* Backdrop */}
@@ -154,7 +179,11 @@ const GroupChatScreen: React.FC = () => {
 					ref={flatListRef}
 					data={groupMessages}
 					renderItem={renderMessage}
-					keyExtractor={(item) => item.id}
+					keyExtractor={(item) => {
+						if (typeof item.id === 'string') return item.id;
+						if (item.id) return JSON.stringify(item.id);
+						return `msg-${Date.now()}-${Math.random()}`;
+					}}
 					style={[styles.messagesList, { zIndex: 1 }]}
 					contentContainerStyle={[
 						groupMessages.length === 0 ? styles.emptyList : styles.messagesContent
@@ -174,7 +203,7 @@ const GroupChatScreen: React.FC = () => {
 					theme={theme}
 				/>
 			</View>
-		</KeyboardAvoidingView>
+		</View>
 	);
 };
 

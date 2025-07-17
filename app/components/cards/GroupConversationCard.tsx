@@ -21,6 +21,9 @@ const GroupConversationCard: React.FC<GroupConversationCardProps> = ({
             console.warn("Invalid group conversation item:", item);
             return null;
         }
+        
+
+        console.log("item on card", JSON.stringify(item, null, 3))
 
         const lastMessage = item?.lastMessage;
         const isUnread = (item?.unreadCount || 0) > 0;
