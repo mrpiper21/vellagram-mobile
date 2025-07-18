@@ -1,11 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import TokenManager from '../utils/tokenManager';
 
-// API Configuration
-export const API_BASE_URL = "http://192.168.86.76:2000"; // Local development server
-const prisma = "http://192.168.86.76:2000";
+export const API_BASE_URL = "http://10.107.71.75:2000";
+const prisma = "http://10.107.71.75:2000";
 
-// Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 10000,
