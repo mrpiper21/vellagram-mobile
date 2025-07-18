@@ -59,14 +59,14 @@ const EmailAuthScreen = () => {
     }, []);
 
     const handleEmailChange = (text: string) => {
-        setEmail(text.trim());
-        setError(""); // Clear error when user types
-    };
+			setEmail(text.trim());
+			setError("");
+		};
 
-    const handlePasswordChange = (text: string) => {
-        setPassword(text.trim());
-        setPasswordError(""); // Clear password error when user types
-    };
+		const handlePasswordChange = (text: string) => {
+			setPassword(text.trim());
+			setPasswordError("");
+		};
 
     const validateEmail = (email: string): boolean => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

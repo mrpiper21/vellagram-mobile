@@ -23,13 +23,15 @@ export interface Contact {
 }
 
 export interface Message {
-    id?: string;
-    content: string;
-    timestamp: number;
-    senderId: string;
-    recipientId: string;
-    type: 'text' | 'image' | 'file' | 'audio' | 'video';
-    status?: 'queued' | 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+	id?: string;
+	content: string;
+	timestamp: number;
+	isEncrypted?: boolean;
+	encryptionKey?: "string";
+	senderId: string;
+	recipientId: string;
+	type: "text" | "image" | "file" | "audio" | "video";
+	status?: "queued" | "sending" | "sent" | "delivered" | "read" | "failed";
 }
 
 export interface Conversation {

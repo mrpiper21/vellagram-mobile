@@ -1,55 +1,56 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import TokenManager from '../utils/tokenManager';
 
-// API Configuration
-export const API_BASE_URL = "http://192.168.86.248:2000"; // Local development server
-const prisma = "http://192.168.86.248:2000";
+export const API_BASE_URL = "http://10.107.71.75:2000";
+const prisma = "http://10.107.71.75:2000";
 
-// Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+	baseURL: API_BASE_URL,
+	timeout: 10000,
+	headers: {
+		"Content-Type": "application/json",
+	},
 });
 
 // Request interceptor to add bearer token
 apiClient.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    // Get token from storage
-    const token = await TokenManager.getToken();
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log("🔐 Axios Interceptor - Token added to request:", token.substring(0, 20) + "...");
-    } else {
-      console.log("⚠️ Axios Interceptor - No token found in storage");
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+	async (config: InternalAxiosRequestConfig) => {
+		// Get token from storage
+		const token = await TokenManager.getToken();
+
+		if (token) {
+			config.headers.Authorization = `Bearer ${token}`;
+			console.log(
+				"🔐 Axios Interceptor - Token added to request:",
+				token.substring(0, 20) + "..."
+			);
+		} else {
+			console.log("⚠️ Axios Interceptor - No token found in storage");
+		}
+
+		return config;
+	},
+	(error) => {
+		return Promise.reject(error);
+	}
 );
 
 // Response interceptor to handle authentication errors
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
-  async (error) => {
-    // Handle 401/403 errors - token expired or invalid
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // Clear token and user data
-      await TokenManager.clearAuth();
-      // You can also trigger a navigation to login screen here
-      // navigation.navigate('Login');
-    }
-    
-    return Promise.reject(error);
-  }
+	(response: AxiosResponse) => {
+		return response;
+	},
+	async (error) => {
+		// Handle 401/403 errors - token expired or invalid
+		if (error.response?.status === 401 || error.response?.status === 403) {
+			// Clear token and user data
+			await TokenManager.clearAuth();
+			// You can also trigger a navigation to login screen here
+			// navigation.navigate('Login');
+		}
+
+		return Promise.reject(error);
+	}
 );
 
 
