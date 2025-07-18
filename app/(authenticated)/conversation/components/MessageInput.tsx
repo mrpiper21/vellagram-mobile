@@ -1,6 +1,8 @@
+import useFormStore from "@/store/useFormStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { EncryptionModal } from "./EncryptionModal";
 
 interface MessageInputProps {
     newMessage: string;
@@ -19,68 +21,85 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     isConnected,
     theme
 }) => {
+    const [showEncryptModal, setShowEncryptModal] = React.useState(false);
+    const {formValues} = useFormStore(['formValues'])
+
+    // Handler for selecting a number
+    const handleSelectNumber = (num: number) => {
+        setShowEncryptModal(false);
+        // Optionally, call a prop or callback here to encrypt the message
+    };
+
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
-            style={styles.keyboardAvoid}
-        >
-            <View style={[styles.inputBar, { backgroundColor: theme.card }, Platform.OS === 'android' ? styles.inputBarAndroid : {}]}>
-                <TouchableOpacity style={{ marginRight: 8, padding: 2 }}>
-                    <Ionicons name="add-circle-outline" size={26} color={theme.icon} />
-                </TouchableOpacity>
-                <View style={[
-                    styles.inputContainer,
-                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' },
-                    Platform.OS === 'android' ? styles.inputContainerAndroid : {},
-                ]}>
-                    <TextInput
+        <>
+            <EncryptionModal
+                visible={showEncryptModal}
+                onClose={() => setShowEncryptModal(false)}
+                onSelect={handleSelectNumber}
+                theme={theme}
+            />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 90}
+                style={styles.keyboardAvoid}
+            >
+                <View style={[styles.inputBar, { backgroundColor: theme.card }, Platform.OS === 'android' ? styles.inputBarAndroid : {}]}>
+                    <TouchableOpacity style={{ marginRight: 8, padding: 2 }}>
+                        <Ionicons name="add-circle-outline" size={26} color={theme.icon} />
+                    </TouchableOpacity>
+                    <View style={[
+                        styles.inputContainer,
+                        { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' },
+                        Platform.OS === 'android' ? styles.inputContainerAndroid : {},
+                    ]}>
+                        <TextInput
+                            style={[
+                                styles.input,
+                                { color: theme.text },
+                                Platform.OS === 'android' ? styles.inputAndroid : {},
+                            ]}
+                            placeholder="Type a message"
+                            placeholderTextColor={theme.icon}
+                            value={newMessage}
+                            onChangeText={setNewMessage}
+                            onSubmitEditing={onSendMessage}
+                            returnKeyType="send"
+                            multiline
+                            maxLength={500}
+                            textAlignVertical="center"
+                        />
+                        {formValues?.key ? <View style={{height: 25, width: 25, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.icon}}><Text>{formValues.key}</Text></View> : <TouchableOpacity onPress={() => setShowEncryptModal(true)}>
+                            <MaterialCommunityIcons name="key-outline" size={24} color={theme.icon} />
+                        </TouchableOpacity>}
+                    </View>
+                    <TouchableOpacity
+                        onPress={onSendMessage}
                         style={[
-                            styles.input,
-                            { color: theme.text },
-                            Platform.OS === 'android' ? styles.inputAndroid : {},
+                            styles.sendButton,
+                            {
+                                backgroundColor: theme.tint,
+                                borderColor: theme.border,
+                                opacity: isSending ? 0.6 : 1
+                            },
+                            Platform.OS === 'android' ? styles.sendButtonAndroid : {},
                         ]}
-                        placeholder="Type a message"
-                        placeholderTextColor={theme.icon}
-                        value={newMessage}
-                        onChangeText={setNewMessage}
-                        onSubmitEditing={onSendMessage}
-                        returnKeyType="send"
-                        multiline
-                        maxLength={500}
-                        textAlignVertical="center"
-                    />
-                    <TouchableOpacity>
-                        <MaterialCommunityIcons name="key-outline" size={24} color={theme.icon} />
+                        disabled={!newMessage?.trim() || isSending}
+                    >
+                        <Ionicons
+                            name={isSending ? "time" : "send"}
+                            size={20}
+                            color={"white"}
+                        />
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                    onPress={onSendMessage}
-                    style={[
-                        styles.sendButton,
-                        {
-                            backgroundColor: theme.tint,
-                            borderColor: theme.border,
-                            opacity: isSending ? 0.6 : 1
-                        },
-                        Platform.OS === 'android' ? styles.sendButtonAndroid : {},
-                    ]}
-                    disabled={!newMessage?.trim() || isSending}
-                >
-                    <Ionicons
-                        name={isSending ? "time" : "send"}
-                        size={20}
-                        color={"white"}
-                    />
-                </TouchableOpacity>
-            </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </>
     );
 };
 
 const styles = StyleSheet.create({
     keyboardAvoid: {
-        position: 'absolute',
+        width: '100%',
         bottom: 0,
         left: 0,
         right: 0,

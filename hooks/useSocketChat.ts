@@ -1,3 +1,4 @@
+import { useGroupStore } from '@/app/store/useGroupStore';
 import { useUserInactivity } from '@/context/UserInactivityContext';
 import { ruseSocketContext } from '@/context/useSockectContext';
 import { getOtherParticipantDetails } from '@/helpers/conversationUtils';
@@ -112,6 +113,37 @@ export const useSocketChat = () => {
             });
         };
 
+        // Handle incoming group messages efficiently
+        const handleGroupIncomingMessages = (data: {
+            id: string;
+            groupId: string;
+            content: string;
+            type: string;
+            sender: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                profilePicture?: string;
+            };
+            timestamp: string;
+            acknowledgmentId?: string;
+        }) => {
+            console.log('📨 [Socket] Received group message:', data);
+            // Add the message to the group store
+            useGroupStore.getState().addSocketMessage(data.groupId, {
+                id: data.id,
+                groupId: data.groupId,
+                content: data.content,
+                type: data.type,
+                senderId: data.sender.id,
+                sender: data.sender,
+                timestamp: data.timestamp,
+                read: false,
+                deliveryStatus: 'delivered',
+            });
+            // Optionally, trigger a notification here if needed
+        };
+
         const handlePendingMessages = (data: {
             sessionId: string;
             otherParticipant: {
@@ -181,6 +213,7 @@ export const useSocketChat = () => {
 
         // Set up event listeners
         socket.on('message', handleIncomingMessage);
+        socket.on('group_message', handleGroupIncomingMessages);
         socket.on('pending_messages', handlePendingMessages);
         socket.on('delivery_status', handleDeliveryStatus);
         socket.on('typing-start', handleTypingStart);
@@ -190,6 +223,7 @@ export const useSocketChat = () => {
         return () => {
             console.log('🔌 Cleaning up socket chat listeners');
             socket.off('message', handleIncomingMessage);
+            socket.off('group_message', handleGroupIncomingMessages);
             socket.off('pending_messages', handlePendingMessages);
             socket.off('delivery_status', handleDeliveryStatus);
             socket.off('typing-start', handleTypingStart);

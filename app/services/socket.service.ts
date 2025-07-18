@@ -193,7 +193,7 @@ class SocketService {
 	}
 
 	sendGroupMessage(groupId: string, content: string, type = "text"): void {
-		if (!this.socket || !this.isConnected) {
+		if (!this.socket ) {
 			console.warn("⚠️ Socket not connected, cannot send message");
 			return;
 		}
@@ -219,6 +219,10 @@ class SocketService {
 
 	getConnectionStatus(): boolean {
 		return this.isConnected && this.socket?.connected === true;
+	}
+
+	getSocket(): Socket | null {
+		return this.socket;
 	}
 
 	// Force reconnect (useful for testing)
