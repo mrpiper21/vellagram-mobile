@@ -2,8 +2,8 @@ import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 
 import TokenManager from '../utils/tokenManager';
 
 // API Configuration
-export const API_BASE_URL = "http://192.168.86.248:2000"; // Local development server
-const prisma = "http://192.168.86.248:2000";
+export const API_BASE_URL = "http://192.168.86.76:2000"; // Local development server
+const prisma = "http://192.168.86.76:2000";
 
 // Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
@@ -54,6 +54,8 @@ apiClient.interceptors.response.use(
 		return Promise.reject(error);
 	}
 );
+
+
 
 export const API_ENDPOINTS = {
 	OTP: {
