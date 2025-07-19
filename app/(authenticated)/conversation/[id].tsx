@@ -1,12 +1,15 @@
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useUserInactivity } from "@/context/UserInactivityContext";
-import { getOtherParticipantDetails } from "@/helpers/conversationUtils";
-import { useConversationLogic } from '@/hooks/useConversationLogic';
-import { useChatStore } from '@/store/useChatStore';
-import { useContactById, useContactStore } from '@/store/useContactStore';
-import { useUserStore } from '@/store/useUserStore';
-import { User } from '@/types/conversation';
+import {
+	getDisplayNameForUser,
+	getOtherParticipantDetails,
+} from "@/helpers/conversationUtils";
+import { useConversationLogic } from "@/hooks/useConversationLogic";
+import { useChatStore } from "@/store/useChatStore";
+import { useContactById, useContactStore } from "@/store/useContactStore";
+import { useUserStore } from "@/store/useUserStore";
+import { User } from "@/types/conversation";
 import { useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
@@ -96,15 +99,16 @@ const ConversationView = ({
 		contacts,
 		allUsers || []
 	);
+	const displayName = getDisplayNameForUser(recipientId, conversationUser.name);
 	return (
 		<View style={{ flex: 1 }}>
 			<Header
-				groupName={conversationUser.name}
-				groupAvatar={conversationUser.name?.charAt(0)?.toUpperCase() || "U"}
+				groupName={displayName}
+				groupAvatar={displayName?.charAt(0)?.toUpperCase() || "U"}
 				onMenuPress={toggleMenu}
 				profileUrl={participantDetails.profile || undefined}
 				recipientInfo={{
-					name: conversationUser.name,
+					name: displayName,
 					id: recipientId,
 					profile: conversationUser.profile,
 					phoneNumber: recipientContact?.phoneNumber || "",
@@ -120,8 +124,8 @@ const ConversationView = ({
 			<GroupDetailsSheet
 				visible={showDetails}
 				onClose={toggleDetails}
-				groupName={participantDetails.name}
-				groupAvatar={participantDetails.name?.charAt(0)?.toUpperCase() || "U"}
+				groupName={displayName}
+				groupAvatar={displayName?.charAt(0)?.toUpperCase() || "U"}
 				animation={detailsAnimation}
 				onChatPress={handleChatPress}
 			/>

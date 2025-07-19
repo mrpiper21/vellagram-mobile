@@ -165,3 +165,17 @@ export const getOtherParticipantDetails = (
 // 	console.log('✅ Using participant name:', name);
 // 	return name;
 // }; 
+
+/**
+ * Get display name for a user, preferring phonebook contact name over API name
+ * @param userId - The user ID to look up
+ * @param fallbackName - The fallback name (e.g., from API)
+ * @returns string - The display name
+ */
+export function getDisplayNameForUser(userId: string, fallbackName?: string): string {
+  // Import here to avoid circular deps if used in store
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getContactById } = require("@/store/useContactStore");
+  const contact = getContactById(userId);
+  return contact?.name || fallbackName || "Unknown";
+} 

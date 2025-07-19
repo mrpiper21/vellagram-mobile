@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import TokenManager from '../utils/tokenManager';
 
-export const API_BASE_URL = "http://10.107.71.75:2000";
-const prisma = "http://10.107.71.75:2000";
+export const API_BASE_URL = "http://172.20.10.8:2000";
+const prisma = "http://172.20.10.8:2000";
 
 const apiClient: AxiosInstance = axios.create({
 	baseURL: API_BASE_URL,
