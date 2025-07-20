@@ -1,8 +1,7 @@
-import { DecryptText } from "@/helpers/cypher";
 import { Message as MessageType } from "@/types/conversation";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useState } from "react";
 import {
 	Animated,
 	Easing,
@@ -11,31 +10,33 @@ import {
 	Text,
 	TouchableOpacity,
 	View,
-	useWindowDimensions,
 } from "react-native";
 
 interface MessageProps {
 	message: MessageType;
 	isOwnMessage: boolean;
 	theme: any;
+	openPasscodeSheet?: () => void;
+	onRequestDecypher?: (msg: MessageType) => void;
+	isJustDecyphered?: boolean;
 }
 
 export const Message: React.FC<MessageProps> = ({
 	message,
 	isOwnMessage,
 	theme,
+	openPasscodeSheet,
+	onRequestDecypher,
+	isJustDecyphered,
 }) => {
 	const [showActions, setShowActions] = React.useState(false);
 	const [modalY, setModalY] = React.useState(0);
 	const [modalX, setModalX] = React.useState(0);
-	const [decyphered, setDecyphered] = React.useState<string | null>(null);
 	const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
 	const opacityAnim = React.useRef(new Animated.Value(0)).current;
 	const bubbleRef = React.useRef<View>(null);
 
-	const window = useWindowDimensions();
 	const MODAL_WIDTH = 180; // or whatever your modal minWidth is
-	const MODAL_MARGIN = 8;
 
 	const getStatusIcon = (status?: string) => {
 		switch (status) {
@@ -47,41 +48,6 @@ export const Message: React.FC<MessageProps> = ({
 				return "checkmark-done";
 			default:
 				return "time";
-		}
-	};
-
-	const handleLongPress = () => {
-		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-		if (bubbleRef.current) {
-			bubbleRef.current.measure((fx, fy, width, height, px, py) => {
-				let x = px + width / 2 - MODAL_WIDTH / 2;
-				let y = py + height + MODAL_MARGIN;
-
-				// Clamp X so modal stays within screen
-				if (x < MODAL_MARGIN) x = MODAL_MARGIN;
-				if (x + MODAL_WIDTH > window.width - MODAL_MARGIN)
-					x = window.width - MODAL_WIDTH - MODAL_MARGIN;
-
-				// Clamp Y if needed (optional)
-				if (y + 80 > window.height) y = window.height - 100;
-
-				setModalY(y);
-				setModalX(x);
-				setShowActions(true);
-				Animated.parallel([
-					Animated.timing(scaleAnim, {
-						toValue: 1,
-						duration: 180,
-						useNativeDriver: true,
-						easing: Easing.out(Easing.ease),
-					}),
-					Animated.timing(opacityAnim, {
-						toValue: 1,
-						duration: 120,
-						useNativeDriver: true,
-					}),
-				]).start();
-			});
 		}
 	};
 
@@ -97,22 +63,251 @@ export const Message: React.FC<MessageProps> = ({
 				duration: 100,
 				useNativeDriver: true,
 			}),
-		]).start(() => setShowActions(false));
+		]).start(() => {
+			setShowActions(false);
+			// if (pendingDecypher) {
+			// 	passcodeSheetRef.current?.snapToIndex(0);
+			// 	setPendingDecypher(false);
+			// }
+		});
 	};
 
 	const handleDecypher = () => {
-		if (message.isEncrypted && message.encryptionKey) {
-			setDecyphered(
-				DecryptText(message.content, Number(message.encryptionKey))
-			);
-		}
-		handleCloseActions();
+		setShowActions(false);
 	};
-
 	const handleDelete = () => {
 		// Implement delete logic here (e.g., call a prop or dispatch)
 		handleCloseActions();
 	};
+
+	const CustomActionSheet = ({
+		visible,
+		onClose,
+		options,
+		previewText,
+	}: any) => {
+		if (!visible) return null;
+		return (
+			<Modal
+				transparent
+				animationType="none"
+				visible={visible}
+				onRequestClose={onClose}
+			>
+				<View style={customStyles.backdrop} />
+				<TouchableOpacity
+					style={customStyles.overlay}
+					activeOpacity={1}
+					onPress={onClose}
+				>
+					<View style={customStyles.stackContainer}>
+						{previewText && (
+							<View style={customStyles.previewContainer}>
+								<Text
+									style={customStyles.previewText}
+									numberOfLines={4}
+									ellipsizeMode="tail"
+								>
+									{previewText}
+								</Text>
+							</View>
+						)}
+						<Animated.View
+							style={[
+								customStyles.sheet,
+								{
+									opacity: sheetAnim,
+									transform: [
+										{
+											translateY: sheetAnim.interpolate({
+												inputRange: [0, 1],
+												outputRange: [40, 0],
+											}),
+										},
+									],
+								},
+							]}
+						>
+							{options.map((opt: any, idx: number) => (
+								<TouchableOpacity
+									key={idx}
+									style={[
+										customStyles.option,
+										opt.danger && customStyles.dangerOption,
+									]}
+									onPress={() => {
+										opt.onPress && opt.onPress();
+										onClose();
+									}}
+								>
+									<View style={customStyles.optionRow}>
+										{opt.icon}
+										<Text
+											style={[
+												customStyles.optionText,
+												opt.danger && { color: "#e74c3c" },
+											]}
+										>
+											{opt.label}
+										</Text>
+									</View>
+								</TouchableOpacity>
+							))}
+						</Animated.View>
+					</View>
+				</TouchableOpacity>
+			</Modal>
+		);
+	};
+
+	const customStyles = StyleSheet.create({
+		backdrop: {
+			...StyleSheet.absoluteFillObject,
+			backgroundColor: "rgba(255,255,255,0.8)",
+			zIndex: 0,
+		},
+		overlay: {
+			flex: 1,
+			justifyContent: "center",
+			alignItems: "flex-end", // align to right
+			paddingRight: 24, // space from right edge
+			zIndex: 1,
+		},
+		sheet: {
+			backgroundColor: "#fff",
+			borderRadius: 16,
+			padding: 16,
+			minWidth: 180,
+			elevation: 10,
+			shadowColor: "#000",
+			shadowOpacity: 0.12,
+			shadowRadius: 8,
+			shadowOffset: { width: 0, height: 2 },
+		},
+		option: {
+			paddingVertical: 12,
+			alignItems: "flex-start",
+			paddingHorizontal: 12,
+		},
+		optionRow: { flexDirection: "row", alignItems: "center" },
+		optionText: { fontSize: 16, color: "#222", marginLeft: 12 },
+		dangerOption: {},
+		previewContainer: {
+			backgroundColor: "#f4f4f4",
+			borderRadius: 10,
+			padding: 10,
+			maxWidth: 260, // wider for more text
+			maxHeight: 90, // limit height for long messages
+			marginBottom: 10, // gap between preview and dropdown
+			shadowColor: "#000",
+			shadowOpacity: 0.08,
+			shadowRadius: 6,
+			shadowOffset: { width: 0, height: 2 },
+			overflow: "hidden", // ensure content doesn't overflow
+			flexShrink: 1,
+		},
+		previewText: {
+			color: "#222",
+			fontSize: 15,
+			flexShrink: 1,
+		},
+		stackContainer: {
+			width: "100%",
+			alignItems: "flex-end",
+			justifyContent: "flex-end",
+			paddingRight: 24,
+			paddingBottom: 32,
+		},
+	});
+
+	const [actionSheetVisible, setActionSheetVisible] = useState(false);
+	const [selectedText, setSelectedText] = useState<string | null>(null);
+	const [sheetAnim] = useState(new Animated.Value(0));
+
+	const handleLongPress = () => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		setSelectedText(message.content); // or a snippet if too long
+		setActionSheetVisible(true);
+		sheetAnim.setValue(0);
+		Animated.timing(sheetAnim, {
+			toValue: 1,
+			duration: 220,
+			easing: Easing.out(Easing.ease),
+			useNativeDriver: true,
+		}).start();
+	};
+
+	const handleDropdownDecypher = () => {
+		if (onRequestDecypher) {
+			onRequestDecypher(message);
+		} else if (openPasscodeSheet) {
+			openPasscodeSheet();
+		}
+	};
+
+	const actionOptions = [
+		{
+			label: "Reply",
+			icon: <Feather name="corner-up-left" size={18} color="#222" />,
+			onPress: () => {
+				/* reply logic */
+			},
+		},
+		{
+			label: "Forward",
+			icon: <Feather name="corner-up-right" size={18} color="#222" />,
+			onPress: () => {
+				/* forward logic */
+			},
+		},
+		{
+			label: "Copy",
+			icon: <Feather name="copy" size={18} color="#222" />,
+			onPress: () => {
+				/* copy logic */
+			},
+		},
+		...(message.isEncrypted
+			? [
+					{
+						label: "Decypher text",
+						icon: <Feather name="key" size={18} color="#222" />,
+						onPress: handleDropdownDecypher,
+					},
+			  ]
+			: []),
+		...(isOwnMessage
+			? [
+					{
+						label: "Delete",
+						icon: <Feather name="trash-2" size={18} color="#e74c3c" />,
+						onPress: () => {
+							/* delete logic */
+						},
+						danger: true,
+					},
+			  ]
+			: []),
+		// Add more as needed
+	];
+	const anim = React.useRef(new Animated.Value(0)).current;
+
+	React.useEffect(() => {
+		if (isJustDecyphered) {
+			Animated.sequence([
+				Animated.timing(anim, {
+					toValue: 1,
+					duration: 400,
+					useNativeDriver: true,
+				}),
+				Animated.timing(anim, {
+					toValue: 0,
+					duration: 400,
+					useNativeDriver: true,
+				}),
+			]).start();
+		}
+	}, [isJustDecyphered]);
 
 	return (
 		<View
@@ -124,135 +319,113 @@ export const Message: React.FC<MessageProps> = ({
 			<TouchableOpacity
 				activeOpacity={0.8}
 				onLongPress={handleLongPress}
-				delayLongPress={250}
+				// delayLongPress={250}
 				ref={bubbleRef}
 			>
-				<View
-					style={[
-						styles.messageBubble,
-						isOwnMessage ? styles.ownBubble : styles.otherBubble,
-						{
-							backgroundColor: isOwnMessage ? theme.border : theme.tint + "22",
-							borderColor: message.isEncrypted ? theme.tint : theme.border,
-							...(message.isEncrypted && {
-								backgroundColor: theme.cyphered,
-								fontFamily: "san-serif",
-							}),
-						},
-					]}
+				<Animated.View
+					style={{
+						transform: [
+							{
+								scale: anim.interpolate({
+									inputRange: [0, 1],
+									outputRange: [1, 1.08],
+								}),
+							},
+						],
+						backgroundColor: isJustDecyphered
+							? anim.interpolate({
+									inputRange: [0, 1],
+									outputRange: ["#fff", "#e0ffe0"],
+							  })
+							: undefined,
+					}}
 				>
-					<Text style={[styles.messageText, { color: theme.text }]}>
-						{message.isEncrypted && (
-							<Feather
-								name="lock"
-								size={14}
-								color={theme.text}
-								style={{ marginRight: 4, opacity: 0.6 }}
-							/>
-						)}
-						{decyphered ?? message.content}
-					</Text>
-					<View style={styles.messageFooter}>
-						<Text style={[styles.messageTime, { color: theme.text }]}>
-							{new Date(message.timestamp).toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit",
-							})}
-						</Text>
-						{isOwnMessage && (
-							<Ionicons
-								name={getStatusIcon(message.status)}
-								size={14}
-								color={theme.text}
-								style={styles.statusIcon}
-							/>
-						)}
-					</View>
-				</View>
-			</TouchableOpacity>
-			{showActions && (
-				<Modal
-					visible={showActions}
-					transparent
-					animationType="none"
-					onRequestClose={handleCloseActions}
-				>
-					<TouchableOpacity
-						style={{ flex: 1 }}
-						activeOpacity={1}
-						onPress={handleCloseActions}
+					<View
+						style={[
+							styles.messageBubble,
+							isOwnMessage ? styles.ownBubble : styles.otherBubble,
+							{
+								backgroundColor: isOwnMessage
+									? theme.border
+									: theme.tint + "22",
+								borderColor: message.isEncrypted ? theme.tint : theme.border,
+								// ...(message.isEncrypted && {
+								// 	backgroundColor: theme.cyphered,
+								// 	fontFamily: "san-serif",
+								// }),
+							},
+						]}
 					>
-						<Animated.View
-							style={{
-								position: "absolute",
-								left: modalX,
-								top: modalY,
-								zIndex: 1000,
-								backgroundColor: theme.card,
-								borderRadius: 12,
-								borderWidth: 1,
-								borderColor: theme.border,
-								paddingVertical: 8,
-								paddingHorizontal: 0,
-								shadowColor: "#000",
-								shadowOffset: { width: 0, height: 2 },
-								shadowOpacity: 0.15,
-								shadowRadius: 8,
-								elevation: 6,
-								minWidth: MODAL_WIDTH,
-								transform: [{ scale: scaleAnim }],
-								opacity: opacityAnim,
-							}}
-						>
-							<TouchableOpacity
-								style={{ paddingVertical: 12, paddingHorizontal: 20 }}
-								onPress={handleDelete}
-							>
-								<Text style={{ color: theme.text, fontSize: 16 }}>
-									Delete message
-								</Text>
-							</TouchableOpacity>
-							{message.isEncrypted && message.encryptionKey && (
-								<TouchableOpacity
-									style={{ paddingVertical: 12, paddingHorizontal: 20 }}
-									onPress={handleDecypher}
-								>
-									<Text style={{ color: theme.text, fontSize: 16 }}>
-										Decypher text
-									</Text>
-								</TouchableOpacity>
+						<Text style={[styles.messageText, { color: theme.text }]}>
+							{message.isEncrypted && (
+								<Feather
+									name="lock"
+									size={14}
+									color={theme.text}
+									style={{ marginRight: 4, opacity: 0.6 }}
+								/>
 							)}
-						</Animated.View>
-					</TouchableOpacity>
-				</Modal>
-			)}
+							{message.content}
+						</Text>
+						<View style={styles.messageFooter}>
+							<Text style={[styles.messageTime, { color: theme.text }]}>
+								{new Date(message.timestamp).toLocaleTimeString([], {
+									hour: "2-digit",
+									minute: "2-digit",
+								})}
+							</Text>
+							{isOwnMessage && (
+								<Ionicons
+									name={getStatusIcon(message.status)}
+									size={14}
+									color={theme.text}
+									style={styles.statusIcon}
+								/>
+							)}
+						</View>
+					</View>
+				</Animated.View>
+			</TouchableOpacity>
+			<CustomActionSheet
+				visible={actionSheetVisible}
+				onClose={() => setActionSheetVisible(false)}
+				options={actionOptions}
+				previewText={selectedText}
+			/>
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
 	messageContainer: {
-		marginVertical: 4,
-		paddingHorizontal: 16,
+		flexDirection: "row",
+		marginVertical: 6, // more vertical gap between messages
+		paddingHorizontal: 8,
 	},
 	ownMessage: {
-		alignItems: "flex-end",
+		justifyContent: "flex-end",
 	},
 	otherMessage: {
-		alignItems: "flex-start",
+		justifyContent: "flex-start",
 	},
 	messageBubble: {
-		maxWidth: "80%",
-		paddingHorizontal: 12,
-		paddingVertical: 8,
+		maxWidth: "78%",
+		paddingHorizontal: 16,
+		paddingVertical: 10,
 		borderRadius: 16,
-		marginBottom: 2,
-		alignSelf: "flex-start",
+		backgroundColor: "#f4f4f8",
+		shadowColor: "#000",
+		shadowOpacity: 0.06,
+		shadowRadius: 4,
+		shadowOffset: { width: 0, height: 2 },
+		marginHorizontal: 8, // consistent edge padding
 	},
 	ownBubble: {
+		backgroundColor: "#d1f5d3",
 		alignSelf: "flex-end",
 	},
 	otherBubble: {
+		backgroundColor: "#f4f4f8",
 		alignSelf: "flex-start",
 	},
 	encryptedBubble: {
@@ -260,19 +433,19 @@ const styles = StyleSheet.create({
 	},
 	messageText: {
 		fontSize: 16,
-		lineHeight: 20,
-		flexDirection: "row",
-		alignItems: "center",
+		color: "#222",
+		lineHeight: 22,
 	},
 	messageFooter: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "flex-end",
-		gap: 2,
+		marginTop: 4,
 	},
 	messageTime: {
 		fontSize: 12,
-		opacity: 0.7,
+		color: "#888",
+		marginLeft: 6,
 	},
 	statusIcon: {
 		marginLeft: 2,

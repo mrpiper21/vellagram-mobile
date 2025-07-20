@@ -8,6 +8,9 @@ interface MessagesListProps {
 	flatListRef: React.RefObject<FlatList<any> | null>;
 	theme: any;
 	user: User | null;
+	openPasscodeSheet?: () => void;
+	onRequestDecypher?: (msg: any) => void;
+	lastDecypheredId?: string | null;
 }
 
 export const MessagesList: React.FC<MessagesListProps> = ({
@@ -15,6 +18,9 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 	flatListRef,
 	theme,
 	user,
+	openPasscodeSheet,
+	onRequestDecypher,
+	lastDecypheredId,
 }) => {
 	const renderMessage = ({ item }: { item: any }) => {
 		const isOwnMessage = item?.senderId === user?.id;
@@ -23,6 +29,9 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 				message={item as MessageType}
 				isOwnMessage={isOwnMessage}
 				theme={theme}
+				openPasscodeSheet={openPasscodeSheet}
+				onRequestDecypher={onRequestDecypher}
+				isJustDecyphered={item.id === lastDecypheredId}
 			/>
 		);
 	};

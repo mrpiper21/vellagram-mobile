@@ -1,3 +1,4 @@
+import CustomPasscodeBottomSheet from "@/app/components/ui/CustomPasscodeBottomSheet";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useUserInactivity } from "@/context/UserInactivityContext";
@@ -9,7 +10,6 @@ import { useConversationLogic } from "@/hooks/useConversationLogic";
 import { useChatStore } from "@/store/useChatStore";
 import { useContactById, useContactStore } from "@/store/useContactStore";
 import { useUserStore } from "@/store/useUserStore";
-import { User } from "@/types/conversation";
 import { useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
@@ -23,7 +23,7 @@ import { MessagesList } from "./components/MessagesList";
 export default function ConversationScreen() {
 	const { id: recipientId } = useLocalSearchParams<{ id: string }>();
 	const theme = useAppTheme();
-	const { user } = useUserStore((state) => state);
+	const user = useUserStore((state) => state.user);
 	const getConversationId = useChatStore((state) => state.getConversationId);
 
 	const conversationId = useMemo(
@@ -40,7 +40,6 @@ export default function ConversationScreen() {
 			theme={theme}
 			conversationId={conversationId}
 			recipientId={recipientId}
-			user={user as User | null}
 		/>
 	);
 }
@@ -49,18 +48,17 @@ interface ConversationViewProps {
 	theme: any;
 	conversationId: string;
 	recipientId: string;
-	user: User | null;
 }
 
 const ConversationView = ({
 	theme,
 	conversationId,
 	recipientId,
-	user,
 }: ConversationViewProps) => {
 	const { contacts } = useContactStore();
 	const { allUsers } = useUserInactivity();
 	const recipientContact = useContactById(recipientId);
+	const user = useUserStore((state) => state.user);
 
 	// Lift encryption state
 	const [isEncrypted, setIsEncrypted] = useState(false);
@@ -92,6 +90,37 @@ const ConversationView = ({
 		isEncrypted,
 		encryptionKey,
 	});
+
+	const [localMessages, setLocalMessages] = useState(messages || []);
+	React.useEffect(() => {
+		setLocalMessages(messages || []);
+	}, [messages]);
+
+	const [showPasscodeSheet, setShowPasscodeSheet] = useState(false);
+	const [selectedMessage, setSelectedMessage] = useState<any>(null);
+	const [lastDecypheredId, setLastDecypheredId] = useState<string | null>(null);
+
+	const openPasscodeSheet = () => setShowPasscodeSheet(true);
+
+	const handleRequestDecypher = (msg: any) => {
+		setSelectedMessage(msg);
+		setShowPasscodeSheet(true);
+	};
+
+	const handleDecypher = (decyphered: string) => {
+		if (selectedMessage) {
+			setLocalMessages((prev) =>
+				prev.map((msg) =>
+					msg.id === selectedMessage.id
+						? { ...msg, content: decyphered, isEncrypted: false }
+						: msg
+				)
+			);
+			setLastDecypheredId(selectedMessage.id);
+			setSelectedMessage(null);
+		}
+		setShowPasscodeSheet(false);
+	};
 
 	const conversationUser = getOtherParticipantDetails(
 		recipientId,
@@ -138,10 +167,13 @@ const ConversationView = ({
 				<View style={{ flex: 1 }}>
 					<View style={{ flex: 1 }}>
 						<MessagesList
-							messages={messages || []}
+							messages={localMessages}
 							flatListRef={flatListRef}
 							theme={theme}
-							user={user}
+							user={user as any}
+							openPasscodeSheet={openPasscodeSheet}
+							onRequestDecypher={handleRequestDecypher}
+							lastDecypheredId={lastDecypheredId}
 						/>
 					</View>
 					<View style={{ backgroundColor: theme.background }}>
@@ -161,13 +193,21 @@ const ConversationView = ({
 				</View>
 				{/* </TouchableWithoutFeedback> */}
 			</KeyboardAvoidingView>
+			<CustomPasscodeBottomSheet
+				visible={showPasscodeSheet}
+				onClose={() => setShowPasscodeSheet(false)}
+				userPin={user?.pin || ""}
+				encryptedText={selectedMessage?.content || ""}
+				encryptionKey={selectedMessage?.encryptionKey || "0"}
+				onDecypher={handleDecypher}
+			/>
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        position: 'relative',
-    },
+	container: {
+		flex: 1,
+		position: "relative",
+	},
 });
