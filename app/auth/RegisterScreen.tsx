@@ -5,7 +5,7 @@ import PersonalInformation from '@/components/registeration-form/personal-info';
 import PinSetUp from '@/components/registeration-form/pin-setup';
 import WalletSetUp from '@/components/registeration-form/wallet-setUp';
 import { apiService } from "@/config/api";
-import { Colors } from "@/constants/Colors";
+import { useAppTheme } from "@/context/ThemeContext";
 import { useValidateSteps } from "@/hooks/useValidateSteps";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -14,6 +14,7 @@ import RegistrationResponseModal from "../components/ui/RegistrationResponseModa
 import useFormStore from "../store/useFormStore";
 
 const RegisterScreen = () => {
+	const { theme } = useAppTheme();
 	const [currentStep, setCurrentStep] = useState(1);
 	const [loading, setLoading] = useState<boolean>(false);
 	const { setFormValue } = useFormStore();
@@ -136,7 +137,7 @@ const RegisterScreen = () => {
 		<View
 			style={{
 				flex: 1,
-				backgroundColor: Colors.light.background,
+				backgroundColor: theme.background,
 				paddingTop: 35,
 			}}
 		>
@@ -154,21 +155,21 @@ const RegisterScreen = () => {
 						style={{
 							padding: 16,
 							borderRadius: 8,
-							backgroundColor: Colors.light.card,
+							backgroundColor: theme.card,
 							flex: 1,
 							marginRight: 8,
 							alignItems: "center",
 						}}
 						onPress={previousStep}
 					>
-						<Text style={{ color: Colors.light.text }}>Previous</Text>
+						<Text style={{ color: theme.text }}>Previous</Text>
 					</TouchableOpacity>
 				)}
 				<TouchableOpacity
 					style={{
 						padding: 16,
 						borderRadius: 8,
-						backgroundColor: Colors.light.tint,
+						backgroundColor: theme.tint,
 						flex: 1,
 						marginLeft: currentStep > 1 ? 8 : 0,
 						alignItems: "center",
@@ -177,7 +178,7 @@ const RegisterScreen = () => {
 					onPress={currentStep === 4 ? handleRegister : nextStep}
 					disabled={loading}
 				>
-					<Text style={{ color: Colors.light.background }}>
+					<Text style={{ color: theme.background }}>
 						{loading
 							? "Processing..."
 							: currentStep === 4

@@ -102,9 +102,14 @@ export const Message: React.FC<MessageProps> = ({
 				>
 					<View style={customStyles.stackContainer}>
 						{previewText && (
-							<View style={customStyles.previewContainer}>
+							<View
+								style={[
+									customStyles.previewContainer,
+									{ backgroundColor: theme.border },
+								]}
+							>
 								<Text
-									style={customStyles.previewText}
+									style={[customStyles.previewText, { color: theme.text }]}
 									numberOfLines={4}
 									ellipsizeMode="tail"
 								>
@@ -115,6 +120,7 @@ export const Message: React.FC<MessageProps> = ({
 						<Animated.View
 							style={[
 								customStyles.sheet,
+								{ backgroundColor: theme.card },
 								{
 									opacity: sheetAnim,
 									transform: [
@@ -145,7 +151,9 @@ export const Message: React.FC<MessageProps> = ({
 										<Text
 											style={[
 												customStyles.optionText,
-												opt.danger && { color: "#e74c3c" },
+												opt.danger
+													? { color: "#e74c3c" }
+													: { color: theme.icon },
 											]}
 										>
 											{opt.label}
@@ -163,7 +171,7 @@ export const Message: React.FC<MessageProps> = ({
 	const customStyles = StyleSheet.create({
 		backdrop: {
 			...StyleSheet.absoluteFillObject,
-			backgroundColor: "rgba(255,255,255,0.8)",
+			backgroundColor: "rgba(256,256,256,0.8)",
 			zIndex: 0,
 		},
 		overlay: {
@@ -174,7 +182,6 @@ export const Message: React.FC<MessageProps> = ({
 			zIndex: 1,
 		},
 		sheet: {
-			backgroundColor: "#fff",
 			borderRadius: 16,
 			padding: 16,
 			minWidth: 180,
@@ -193,7 +200,6 @@ export const Message: React.FC<MessageProps> = ({
 		optionText: { fontSize: 16, color: "#222", marginLeft: 12 },
 		dangerOption: {},
 		previewContainer: {
-			backgroundColor: "#f4f4f4",
 			borderRadius: 10,
 			padding: 10,
 			maxWidth: 260, // wider for more text
@@ -207,7 +213,6 @@ export const Message: React.FC<MessageProps> = ({
 			flexShrink: 1,
 		},
 		previewText: {
-			color: "#222",
 			fontSize: 15,
 			flexShrink: 1,
 		},
@@ -248,21 +253,21 @@ export const Message: React.FC<MessageProps> = ({
 	const actionOptions = [
 		{
 			label: "Reply",
-			icon: <Feather name="corner-up-left" size={18} color="#222" />,
+			icon: <Feather name="corner-up-left" size={18} color={theme.icon} />,
 			onPress: () => {
 				/* reply logic */
 			},
 		},
 		{
 			label: "Forward",
-			icon: <Feather name="corner-up-right" size={18} color="#222" />,
+			icon: <Feather name="corner-up-right" size={18} color={theme.icon} />,
 			onPress: () => {
 				/* forward logic */
 			},
 		},
 		{
 			label: "Copy",
-			icon: <Feather name="copy" size={18} color="#222" />,
+			icon: <Feather name="copy" size={18} color={theme.icon} />,
 			onPress: () => {
 				/* copy logic */
 			},
@@ -271,7 +276,7 @@ export const Message: React.FC<MessageProps> = ({
 			? [
 					{
 						label: "Decypher text",
-						icon: <Feather name="key" size={18} color="#222" />,
+						icon: <Feather name="key" size={18} color={theme.icon} />,
 						onPress: handleDropdownDecypher,
 					},
 			  ]

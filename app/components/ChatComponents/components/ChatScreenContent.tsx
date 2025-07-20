@@ -98,7 +98,6 @@ const ChatScreenContent: React.FC = () => {
 		({ item }: { item: any }) => (
 			<ConversationCard
 				item={item}
-				theme={theme}
 				currentUser={currentUser}
 				contacts={contacts}
 				allUsers={allUsers}

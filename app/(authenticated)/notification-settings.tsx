@@ -4,7 +4,7 @@ import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useTheme } from '@/hooks/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, StyleSheet, Switch, View } from 'react-native';
 
 const NotificationSettingsScreen = () => {
     const { settings, isLoading, toggleSetting, resetToDefaults } = useNotificationSettings();
@@ -49,7 +49,7 @@ const NotificationSettingsScreen = () => {
 
     return (
         <ThemedView style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <View>
                 <View style={styles.header}>
                     <Ionicons name="notifications" size={24} color={theme.text} />
                     <ThemedText style={styles.title}>Notification Settings</ThemedText>
@@ -173,7 +173,7 @@ const NotificationSettingsScreen = () => {
                         Reset to Defaults
                     </ThemedText>
                 </View>
-            </ScrollView>
+            </View>
         </ThemedView>
     );
 };
@@ -190,6 +190,7 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.1)',
+        marginTop: 30
     },
     title: {
         fontSize: 24,

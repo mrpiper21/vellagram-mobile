@@ -17,6 +17,8 @@ export default function AuthenticatedLayout() {
 						options={{ headerShown: false }}
 					/>
 					<Stack.Screen name="groupChat/[groupId]" />
+					<Stack.Screen name="notification-settings" />
+					<Stack.Screen name="settings" />
 				</Stack>
 			</GroupDetailsProvider>
 		</SocketProvider>

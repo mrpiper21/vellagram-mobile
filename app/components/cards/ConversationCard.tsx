@@ -2,6 +2,7 @@ import {
 	getDisplayNameForUser,
 	getOtherParticipantDetails,
 } from "@/helpers/conversationUtils";
+import { useTheme } from "@/hooks/useTheme";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
@@ -10,7 +11,6 @@ import AvatarPlaceholder from "../avatar/AvatarPlaceholder";
 
 interface ConversationCardProps {
 	item: any;
-	theme: any;
 	currentUser: any;
 	contacts: any;
 	allUsers: any;
@@ -18,11 +18,11 @@ interface ConversationCardProps {
 
 const ConversationCard: React.FC<ConversationCardProps> = ({
 	item,
-	theme,
 	currentUser,
 	contacts,
 	allUsers,
 }) => {
+	const { theme } = useTheme();
 	try {
 		if (!item || typeof item !== "object") {
 			console.warn("Invalid conversation item:", item);
@@ -66,7 +66,7 @@ const ConversationCard: React.FC<ConversationCardProps> = ({
 			>
 				<View style={styles.avatarContainer}>
 					{conversationUser.profile ? (
-						<View style={styles.avatar}>
+						<View style={[styles.avatar, { backgroundColor: theme.card }]}>
 							<Image
 								source={{ uri: conversationUser.profile }}
 								style={styles.avatarImage}
