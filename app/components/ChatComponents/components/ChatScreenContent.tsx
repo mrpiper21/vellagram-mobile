@@ -98,36 +98,41 @@ const ChatScreenContent: React.FC = () => {
 		({ item }: { item: any }) => (
 			<ConversationCard
 				item={item}
-				theme={theme}
 				currentUser={currentUser}
 				contacts={contacts}
 				allUsers={allUsers}
 			/>
 		),
-		[theme, currentUser, contacts, /*Todo allUsers*/]
+		[currentUser, contacts, allUsers]
 	);
 
-	const renderEmptyState = useCallback(() => (
-		<View style={styles.emptyStateContainer}>
-			{searchQuery.trim() ? (
-				<View style={styles.searchEmptyState}>
-					<Ionicons name="search" size={48} color={theme.textSecondary} />
-					<Text
-						style={[styles.searchEmptyText, { color: theme.textSecondary }]}
-					>
-						No conversations found for "{searchQuery}"
-					</Text>
-					<Text
-						style={[styles.searchEmptySubtext, { color: theme.textSecondary }]}
-					>
-						Try searching for a different name or message
-					</Text>
-				</View>
-			) : (
-				<NoMessages />
-			)}
-		</View>
-	), [searchQuery, theme.textSecondary]);
+	const renderEmptyState = useCallback(
+		() => (
+			<View style={styles.emptyStateContainer}>
+				{searchQuery.trim() ? (
+					<View style={styles.searchEmptyState}>
+						<Ionicons name="search" size={48} color={theme.textSecondary} />
+						<Text
+							style={[styles.searchEmptyText, { color: theme.textSecondary }]}
+						>
+							No conversations found for "{searchQuery}"
+						</Text>
+						<Text
+							style={[
+								styles.searchEmptySubtext,
+								{ color: theme.textSecondary },
+							]}
+						>
+							Try searching for a different name or message
+						</Text>
+					</View>
+				) : (
+					<NoMessages />
+				)}
+			</View>
+		),
+		[searchQuery]
+	);
 
 	const handleFabPress = useCallback(() => {
 		router.push("/contacts");

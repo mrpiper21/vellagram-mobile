@@ -68,14 +68,31 @@ export const EncryptionModal: React.FC<EncryptionModalProps> = ({
 						Encrypt message with:
 					</Text>
 					<View style={styles.numbersRow}>
-						{[3, 4, 5, 6, 7, 8, 9, "off"].map((num) => (
+						{[3, 4, 5, "off", "AI"].map((num) => (
 							<TouchableOpacity
 								key={num}
-								style={[styles.numberButton, { backgroundColor: theme.tint }]}
+								disabled={num === "AI"}
+								style={[
+									styles.numberButton,
+									{
+										backgroundColor:
+											num === "off"
+												? ""
+												: num === "AI"
+												? theme.icon
+												: theme.tint,
+										borderColor: theme.tint,
+										borderWidth: num === "off" ? 0.5 : 0,
+									},
+								]}
 								onPress={() => handleSelect(num)}
 							>
 								<Text
-									style={{ color: "white", fontSize: 20, fontWeight: "bold" }}
+									style={{
+										color: num === "off" ? theme.tint : "white",
+										fontSize: 20,
+										fontWeight: "bold",
+									}}
 								>
 									{num}
 								</Text>
@@ -89,33 +106,33 @@ export const EncryptionModal: React.FC<EncryptionModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.2)',
-    },
-    encryptModal: {
-        padding: 10,
-        borderRadius: 20,
-        borderWidth: 1,
-        alignItems: 'center',
-        zIndex: 100,
-    },
-    modalTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-    },
-    numbersRow: {
-        flexDirection: 'row',
-        gap: 4,
-        width: '100%',
-        flexWrap: 'wrap'
-    },
-    numberButton: {
-        marginHorizontal: 6,
-        paddingVertical: 10,
-        paddingHorizontal: 18,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: "rgba(0,0,0,0.2)",
+	},
+	encryptModal: {
+		padding: 10,
+		borderRadius: 20,
+		borderWidth: 1,
+		alignItems: "center",
+		zIndex: 100,
+	},
+	modalTitle: {
+		fontSize: 16,
+		fontWeight: "600",
+		marginBottom: 12,
+	},
+	numbersRow: {
+		flexDirection: "row",
+		gap: 4,
+		width: "100%",
+		flexWrap: "wrap",
+	},
+	numberButton: {
+		marginHorizontal: 6,
+		paddingVertical: 10,
+		paddingHorizontal: 18,
+		borderRadius: 50,
+		alignItems: "center",
+	},
 }); 

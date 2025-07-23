@@ -40,26 +40,24 @@ const OtpAuthScreen = () => {
     const { formValues, clearForm } = useFormStore();
 
     useEffect(() => {
-        // If no user data, redirect to login
-        if (!formValues?.user) {
-            router.replace("/auth/EmailAuthScreen");
-            return;
-        }
+			if (!formValues?.user) {
+				router.replace("/auth/EmailAuthScreen");
+				return;
+			}
 
-        // Start the resend timer
-        const timer = setInterval(() => {
-            setResendTimer((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    setCanResend(true);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
+			const timer = setInterval(() => {
+				setResendTimer((prev) => {
+					if (prev <= 1) {
+						clearInterval(timer);
+						setCanResend(true);
+						return 0;
+					}
+					return prev - 1;
+				});
+			}, 1000);
 
-        return () => clearInterval(timer);
-    }, [formValues]);
+			return () => clearInterval(timer);
+		}, [formValues]);
 
     React.useEffect(() => {
         Animated.parallel([

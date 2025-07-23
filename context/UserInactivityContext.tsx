@@ -186,93 +186,111 @@ export const UserInactivityProvider: React.FC<{ children: React.ReactNode }> = (
     }, [batchAddContacts]);
 
     const loadDeviceContacts = useCallback(async () => {
-        if (!user?.id) return;
-        
-        try {
-            console.log("🔐 Requesting contact permissions...");
-            const { status } = await Contacts.requestPermissionsAsync();
-            
-            if (status !== "granted") {
-                console.log("❌ Permission denied");
-                return;
-            }
+			if (!user?.id) return;
 
-            console.log("🚀 Loading users and device contacts in parallel...");
-            
-            // Fetch all users with ETag support
-            const [allUsersFromApi, wasModified, notModified] = await fetchAllUsers();
-            
-            if (allUsersFromApi && allUsersFromApi.length > 0) {
-                // Convert UserData to IUser format
-                const convertedUsers: IUser[] = allUsersFromApi.map((user: any) => ({
-                    ...user,
-                    pin: '', // Add missing IUser properties with defaults
-                    groups: [],
-                }));
-                setAllUsers(convertedUsers);
-                console.log("👥 Loaded", allUsersFromApi.length, "registered users");
-            }
-            
-            // If server returned 304 and we have recent contact sync, skip processing
-            if (notModified && (Date.now() - lastContactSyncTime.current) < 60 * 60 * 1000) {
-                console.log("⏩ Skipping contact processing - no changes detected and recent sync exists");
-                return;
-            }
+			try {
+				console.log("🔐 Requesting contact permissions...");
+				const { status } = await Contacts.requestPermissionsAsync();
 
-            // If data wasn't modified and we have recent sync, skip processing
-            if (!wasModified && (Date.now() - lastContactSyncTime.current) < 60 * 60 * 1000) {
-                console.log("⏩ Skipping contact processing - no data changes and recent sync exists");
-                return;
-            }
+				if (status !== "granted") {
+					console.log("❌ Permission denied");
+					return;
+				}
 
-            // Load device contacts
-            const { data: deviceContacts } = await Contacts.getContactsAsync({
-                fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-            });
+				console.log("🚀 Loading users and device contacts in parallel...");
 
-            // Process contacts for batch checking
-            const contactsToProcess: Omit<ContactUser, 'lastChecked'>[] = [];
-            
-            for (const contact of deviceContacts) {
-                contact.phoneNumbers?.forEach(phoneObj => {
-                    const phone = phoneObj.number;
-                    if (!phone) return;
-                    
-                    const normalized = normalizeIdentifiers(phone);
-                    if (!normalized.length) return;
-                    
-                    normalized.forEach(n => {
-                        contactsToProcess.push({
-                            id: `${contact.id}-${n}`,
-                            phoneNumber: n,
-                            name: contact.name,
-                            avatar: contact.image?.uri,
-                            isRegistered: false, // Will be determined in batch processing
-                        });
-                    });
-                });
-            }
-            
-            console.log(`📱 Prepared ${contactsToProcess.length} contacts for processing`);
-            
-            // Start batch processing in the background
-            if (contactsToProcess.length > 0) {
-                // Add contacts to store immediately (with isRegistered: false)
-                batchAddContacts(contactsToProcess.map(c => ({ ...c, lastChecked: 0 })));
-                
-                // Then process them in batches
-                setTimeout(() => {
-                    processBatchedContacts(contactsToProcess);
-                }, 500); // Small delay to let UI render first
-            }
-            
-            // Update last sync time
-            lastContactSyncTime.current = Date.now();
+				// Fetch all users with ETag support
+				const [allUsersFromApi, wasModified, notModified] =
+					await fetchAllUsers();
 
-        } catch (error) {
-            console.error("Contact loading error:", error);
-        }
-    }, [user?.id, batchAddContacts, processBatchedContacts]);
+				if (allUsersFromApi && allUsersFromApi.length > 0) {
+					// Convert UserData to IUser format
+					const convertedUsers: IUser[] = allUsersFromApi.map((user: any) => ({
+						...user,
+						pin: "", // Add missing IUser properties with defaults
+						groups: [],
+					}));
+					setAllUsers(convertedUsers);
+					console.log("👥 Loaded", allUsersFromApi.length, "registered users");
+				}
+
+				// If server returned 304 and we have recent contact sync, skip processing
+				if (
+					notModified &&
+					Date.now() - lastContactSyncTime.current < 60 * 60 * 1000
+				) {
+					console.log(
+						"⏩ Skipping contact processing - no changes detected and recent sync exists"
+					);
+					return;
+				}
+
+				// If data wasn't modified and we have recent sync, skip processing
+				if (
+					!wasModified &&
+					Date.now() - lastContactSyncTime.current < 60 * 60 * 1000
+				) {
+					console.log(
+						"⏩ Skipping contact processing - no data changes and recent sync exists"
+					);
+					return;
+				}
+
+				// Load device contacts
+				const { data: deviceContacts } = await Contacts.getContactsAsync({
+					fields: [
+						Contacts.Fields.Name,
+						Contacts.Fields.PhoneNumbers,
+						Contacts.Fields.Image,
+					],
+				});
+
+				// Process contacts for batch checking
+				const contactsToProcess: Omit<ContactUser, "lastChecked">[] = [];
+
+				for (const contact of deviceContacts) {
+					contact.phoneNumbers?.forEach((phoneObj) => {
+						const phone = phoneObj.number;
+						if (!phone) return;
+
+						const normalized = normalizeIdentifiers(phone);
+						if (!normalized.length) return;
+
+						normalized.forEach((n) => {
+							contactsToProcess.push({
+								id: `${contact.id}-${n}`,
+								phoneNumber: n,
+								name: contact.name,
+								avatar: contact.image?.uri,
+								isRegistered: false,
+							});
+						});
+					});
+				}
+
+				console.log(
+					`📱 Prepared ${contactsToProcess.length} contacts for processing`
+				);
+
+				// Start batch processing in the background
+				if (contactsToProcess.length > 0) {
+					// Add contacts to store immediately (with isRegistered: false)
+					batchAddContacts(
+						contactsToProcess.map((c) => ({ ...c, lastChecked: 0 }))
+					);
+
+					// Then process them in batches
+					setTimeout(() => {
+						processBatchedContacts(contactsToProcess);
+					}, 500); // Small delay to let UI render first
+				}
+
+				// Update last sync time
+				lastContactSyncTime.current = Date.now();
+			} catch (error) {
+				console.error("Contact loading error:", error);
+			}
+		}, [user?.id, batchAddContacts]);
 
     // Optimized phone registration check
     const checkPhoneRegistration = useCallback(async (phoneNumber: string): Promise<{ isRegistered: boolean; userData?: any }> => {
